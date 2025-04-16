@@ -4,19 +4,25 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Mail, Lock, Eye, EyeOff } from "lucide-react"
-import Link from "next/link"
+import { toast, Toaster } from "sonner"
+import api from "@/lib/axios"
+import { useAppDispatch } from "@/lib/redux/hooks"
+import { login } from "@/lib/redux/slices/authSlice"
 
 export default function Login() {
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [apiError, setApiError] = useState("")
 
   const [formData, setFormData] = useState({
     email: "",
@@ -35,6 +41,11 @@ export default function Login() {
         delete newErrors[name]
         return newErrors
       })
+    }
+    
+    // Clear API error when user makes changes
+    if (apiError) {
+      setApiError("")
     }
   }
 
@@ -59,7 +70,8 @@ export default function Login() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // The handleSubmit function with Redux
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) {
@@ -67,29 +79,44 @@ export default function Login() {
     }
 
     setIsLoading(true)
-
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
-
-      // Store user data in localStorage
-      if (typeof window !== "undefined") {
-        localStorage.setItem(
-          "userData",
-          JSON.stringify({
-            email: formData.email,
-            isLoggedIn: true,
-          }),
-        )
+    setApiError("")
+    
+    try {
+      // Use Redux thunk for login
+      const resultAction = await dispatch(login({
+        email: formData.email,
+        password: formData.password,
+      })).unwrap();
+      
+      // Show success toast
+      toast.success('Login successful!', {
+        description: `Welcome back, ${resultAction.user.fullName}! You've been logged in successfully.`,
+        duration: 3000,
+      });
+      
+      // Store rememberMe preference
+      if (formData.rememberMe && typeof window !== "undefined") {
+        localStorage.setItem('rememberMe', 'true');
       }
-
-      // Redirect to loan information form
-      router.push("/loan-info/property")
-    }, 1500)
+      
+      // Redirect to loan information form after a short delay
+      setTimeout(() => {
+        router.push("/loan-info/new/property");
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Login error:', error);
+      setApiError(error?.message || 'Invalid email or password. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
+      {/* Add the Toaster component */}
+      <Toaster position="top-center" richColors />
+      
       <div className="container mx-auto px-4 max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
@@ -107,6 +134,12 @@ export default function Login() {
           </CardHeader>
 
           <CardContent>
+            {apiError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md text-sm">
+                {apiError}
+              </div>
+            )}
+            
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
@@ -130,7 +163,7 @@ export default function Login() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="password">Password</Label>
-                  <Link href="#" className="text-sm text-blue-600 hover:underline">
+                  <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
                     Forgot password?
                   </Link>
                 </div>

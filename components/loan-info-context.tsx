@@ -1,106 +1,41 @@
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  selectLoanInfo, 
+  updateSection, 
+  resetLoanInfo,
+  type LoanInfoState
+} from '@/lib/redux/slices/loanInfoSlice';
+import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 
-interface LoanInfoContextType {
-  formData: {
-    employment: {
-      employmentStatus: string
-      employmentType: string
-      employerName: string
-      jobTitle: string
-      yearsInCurrentJob: string
-      annualIncome: string
-      additionalIncome: string
-    }
-    financial: {
-      creditScore: string
-      monthlyDebts: string
-      bankruptcyHistory: string
-    }
-    loanRequirements: {
-      loanPurpose: string
-      loanAmount: string
-      loanTerm: string
-      interestRatePreference: string
-    }
-    property: {
-      propertyType: string
-      propertyUse: string
-      propertyValue: string
-      propertyAddress: string
-      propertyCity: string
-      propertyState: string
-      propertyZip: string
-    }
-    additionalFeatures: {
-      offsetAccount: boolean
-      redrawFacility: boolean
-      extraRepayments: boolean
-      interestOnlyPeriod: boolean
-      fixedRatePeriod: boolean
-    }
-  }
-  updateFormData: (section: string, data: any) => void
-}
-
-const LoanInfoContext = createContext<LoanInfoContextType | undefined>(undefined)
-
-export function LoanInfoProvider({ children }: { children: ReactNode }) {
-  const [formData, setFormData] = useState({
-    employment: {
-      employmentStatus: "",
-      employmentType: "",
-      employerName: "",
-      jobTitle: "",
-      yearsInCurrentJob: "",
-      annualIncome: "",
-      additionalIncome: "",
-    },
-    financial: {
-      creditScore: "",
-      monthlyDebts: "",
-      bankruptcyHistory: "",
-    },
-    loanRequirements: {
-      loanPurpose: "",
-      loanAmount: "",
-      loanTerm: "",
-      interestRatePreference: "",
-    },
-    property: {
-      propertyType: "",
-      propertyUse: "",
-      propertyValue: "",
-      propertyAddress: "",
-      propertyCity: "",
-      propertyState: "",
-      propertyZip: "",
-    },
-    additionalFeatures: {
-      offsetAccount: false,
-      redrawFacility: false,
-      extraRepayments: false,
-      interestOnlyPeriod: false,
-      fixedRatePeriod: false,
-    },
-  })
-
-  const updateFormData = (section: string, data: any) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      [section]: {
-        ...prevData[section as keyof typeof prevData],
-        ...data,
-      },
-    }))
-  }
-
-  return <LoanInfoContext.Provider value={{ formData, updateFormData }}>{children}</LoanInfoContext.Provider>
-}
-
+// Create a hook to use loan info from Redux
 export function useLoanInfo() {
-  const context = useContext(LoanInfoContext)
-  if (context === undefined) {
-    throw new Error("useLoanInfo must be used within a LoanInfoProvider")
-  }
-  return context
+  const dispatch = useAppDispatch();
+  const formData = useAppSelector(selectLoanInfo);
+  
+  // Function to update a section of the loan info
+  const updateFormData = (section: keyof LoanInfoState, data: any) => {
+    dispatch(updateSection({ section, data }));
+  };
+  
+  // Function to update multiple fields at once
+  const updateMultipleFields = (data: Partial<LoanInfoState>) => {
+    Object.entries(data).forEach(([section, sectionData]) => {
+      dispatch(updateSection({ 
+        section: section as keyof LoanInfoState, 
+        data: sectionData 
+      }));
+    });
+  };
+  
+  // Function to reset the loan info
+  const resetForm = () => {
+    dispatch(resetLoanInfo());
+  };
+  
+  return { 
+    formData, 
+    updateFormData, 
+    updateMultipleFields,
+    resetForm
+  };
 }

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -13,14 +13,21 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { ArrowRight, CheckCircle, Mail, Lock, User, Phone, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
+import { toast, Toaster } from "sonner"
+import api from "@/lib/axios"
+import { useAppDispatch } from "@/lib/redux/hooks"
+import { signup, setCredentials } from "@/lib/redux/slices/authSlice"
 
 export default function SignUp() {
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [apiError, setApiError] = useState("")
+  const [progressValue, setProgressValue] = useState(0)
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -31,6 +38,24 @@ export default function SignUp() {
     agreeTerms: false,
     receiveUpdates: false,
   })
+
+  // Update progress value based on step and form completion
+  useEffect(() => {
+    if (step === 1) {
+      // Calculate step 1 progress (0-45%)
+      const step1Fields = ['fullName', 'email', 'phone'];
+      const filledFields = step1Fields.filter(field => formData[field].trim() !== '').length;
+      const step1Progress = Math.floor((filledFields / step1Fields.length) * 45);
+      setProgressValue(step1Progress);
+    } else {
+      // Calculate step 2 progress (45-100%)
+      const step2Fields = ['password', 'confirmPassword'];
+      const filledFields = step2Fields.filter(field => formData[field] !== '').length;
+      const termsChecked = formData.agreeTerms ? 1 : 0;
+      const step2Progress = 45 + Math.floor(((filledFields / step2Fields.length) * 45) + (termsChecked * 10));
+      setProgressValue(step2Progress);
+    }
+  }, [formData, step]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -43,6 +68,11 @@ export default function SignUp() {
         delete newErrors[name]
         return newErrors
       })
+    }
+    
+    // Clear API error when user makes changes
+    if (apiError) {
+      setApiError("")
     }
   }
 
@@ -72,10 +102,11 @@ export default function SignUp() {
       newErrors.email = "Please enter a valid email address"
     }
 
+    // Updated phone validation
     if (!formData.phone.trim()) {
       newErrors.phone = "Phone number is required"
-    } else if (!/^[0-9+\-() ]{8,15}$/.test(formData.phone.replace(/\s/g, ""))) {
-      newErrors.phone = "Please enter a valid phone number"
+    } else if (!/^(?:\+61|0)[4-9]\d{8}$/.test(formData.phone.replace(/\s/g, ""))) {
+      newErrors.phone = "Please provide a valid Australian phone number"
     }
 
     setErrors(newErrors)
@@ -87,8 +118,25 @@ export default function SignUp() {
 
     if (!formData.password) {
       newErrors.password = "Password is required"
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters"
+    } else {
+      // Enhanced password validation
+      const hasUpperCase = /[A-Z]/.test(formData.password)
+      const hasLowerCase = /[a-z]/.test(formData.password)
+      const hasNumber = /[0-9]/.test(formData.password)
+      const hasSpecialChar = /[^A-Za-z0-9]/.test(formData.password)
+      const isLongEnough = formData.password.length >= 8
+
+      if (!isLongEnough) {
+        newErrors.password = "Password must be at least 8 characters"
+      } else if (!hasUpperCase) {
+        newErrors.password = "Password must contain at least one uppercase letter"
+      } else if (!hasLowerCase) {
+        newErrors.password = "Password must contain at least one lowercase letter"
+      } else if (!hasNumber) {
+        newErrors.password = "Password must contain at least one number"
+      } else if (!hasSpecialChar) {
+        newErrors.password = "Password must contain at least one special character"
+      }
     }
 
     if (!formData.confirmPassword) {
@@ -114,43 +162,105 @@ export default function SignUp() {
     }
   }
 
-  const handleSubmit = () => {
-    setIsLoading(true)
-
-    // Save user data to localStorage for persistence
-    if (typeof window !== "undefined") {
-      localStorage.setItem(
-        "userData",
-        JSON.stringify({
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-        }),
-      )
+  // The handleSubmit function with Redux
+  const handleSubmit = async () => {
+    if (!validateStep2()) {
+      return; // Don't proceed if validation fails
     }
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
-      // Redirect to the loan information form starting with property
-      router.push("/loan-info/property")
-    }, 1500)
+    setIsLoading(true)
+    setApiError("")
+    
+    try {
+      const resultAction = await dispatch(signup({
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone.replace(/\s/g, ""), // Remove spaces before sending
+        password: formData.password,
+        receiveUpdates: formData.receiveUpdates,
+        agreeTerms: formData.agreeTerms,
+      })).unwrap();
+      
+      // Only proceed with success actions if we have a valid response
+      if (resultAction?.user) {
+        toast.success('Welcome aboard!', {
+          description: `Congratulations ${formData.fullName}! Your account has been successfully registered. Let's get started with your loan journey.`,
+          duration: 6000,
+        });
+        
+        // Redirect to the loan information form after a short delay
+        setTimeout(() => {
+          router.push("/loan-info/new/property");
+        }, 1000);
+      } else {
+        throw new Error('Invalid response from server');
+      }
+      
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      
+      // Handle specific error types
+      if (error?.data?.message?.includes('phone')) {
+        setErrors(prev => ({
+          ...prev,
+          phone: "Please provide a valid phone number"
+        }));
+        setStep(1); // Go back to first step if phone number is invalid
+      } else if (error.status === 409) {
+        setApiError('This email is already registered. Please try logging in instead.');
+      } else if (error.status === 400) {
+        setApiError('Please check your information and try again.');
+      } else if (error.message) {
+        setApiError(error.message);
+      } else {
+        setApiError('Failed to create account. Please try again later.');
+      }
+      
+      // Show error toast
+      toast.error('Registration failed', {
+        description: error.message || 'Please check your information and try again.',
+        duration: 5000,
+      });
+      
+      // Reset form progress if there's a serious error
+      if (error.status >= 500) {
+        setStep(1);
+        window.scrollTo(0, 0);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   const getPasswordStrength = (password: string) => {
-    if (!password) return { strength: 0, label: "" }
+    if (!password) return { strength: 0, label: "", color: "" }
 
     let strength = 0
+    let requirements = []
 
     // Length check
-    if (password.length >= 8) strength += 1
-    if (password.length >= 12) strength += 1
+    if (password.length >= 8) {
+      strength += 1
+      requirements.push("length")
+    }
 
-    // Character variety checks
-    if (/[A-Z]/.test(password)) strength += 1
-    if (/[a-z]/.test(password)) strength += 1
-    if (/[0-9]/.test(password)) strength += 1
-    if (/[^A-Za-z0-9]/.test(password)) strength += 1
+    // Character variety checks with specific tracking
+    if (/[A-Z]/.test(password)) {
+      strength += 1
+      requirements.push("uppercase")
+    }
+    if (/[a-z]/.test(password)) {
+      strength += 1
+      requirements.push("lowercase")
+    }
+    if (/[0-9]/.test(password)) {
+      strength += 1
+      requirements.push("number")
+    }
+    if (/[^A-Za-z0-9]/.test(password)) {
+      strength += 1
+      requirements.push("special")
+    }
 
     let label = ""
     let color = ""
@@ -167,16 +277,34 @@ export default function SignUp() {
     }
 
     return {
-      strength: Math.min(100, (strength / 6) * 100),
+      strength: Math.min(100, (strength / 5) * 100),
       label,
       color,
+      requirements
     }
   }
 
   const passwordStrength = getPasswordStrength(formData.password)
 
+  // The JSX return with the added top progress bar
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gray-50 py-12 pt-16">
+      {/* Add the Toaster component */}
+      <Toaster position="top-center" richColors />
+      
+      {/* Fixed top progress bar with improved visibility */}
+      <div className="fixed top-0 left-0 w-full z-50 bg-white shadow-sm">
+        <div className="h-1 w-full bg-gray-100">
+          <div 
+            className="h-full bg-blue-600 transition-all duration-300 ease-in-out"
+            style={{ width: `${progressValue}%` }}
+          ></div>
+        </div>
+        <div className="py-2 px-4 text-xs text-gray-500 text-center">
+          {progressValue < 45 ? 'Step 1 of 2: Personal Details' : 'Step 2 of 2: Create Password'}
+        </div>
+      </div>
+      
       <div className="container mx-auto px-4 max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
@@ -191,12 +319,18 @@ export default function SignUp() {
         <Card className="border-none shadow-lg">
           <CardHeader className="pb-2">
             <div className="w-full mb-4">
-              <Progress value={step === 1 ? 50 : 100} className="h-1" />
+              <Progress value={step === 1 ? 50 : 100} className="h-2" />
             </div>
             <CardTitle className="text-xl">{step === 1 ? "Your Details" : "Create Password"}</CardTitle>
           </CardHeader>
 
           <CardContent className="pt-4">
+            {apiError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md text-sm">
+                {apiError}
+              </div>
+            )}
+            
             <AnimatePresence mode="wait">
               {step === 1 ? (
                 <motion.div
@@ -300,26 +434,35 @@ export default function SignUp() {
                       <div className="space-y-1 mt-2">
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-gray-500">Password strength:</span>
-                          <span className="text-xs font-medium">{passwordStrength.label}</span>
+                          <span className={`text-xs font-medium ${
+                            passwordStrength.label === "Weak" ? "text-red-500" :
+                            passwordStrength.label === "Medium" ? "text-yellow-500" :
+                            "text-green-500"
+                          }`}>
+                            {passwordStrength.label}
+                          </span>
                         </div>
                         <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
                           <div
-                            className={`h-full ${passwordStrength.color}`}
+                            className={`h-full ${passwordStrength.color} transition-all duration-300`}
                             style={{ width: `${passwordStrength.strength}%` }}
                           ></div>
                         </div>
                         <ul className="text-xs text-gray-500 space-y-1 mt-2">
-                          <li className={formData.password.length >= 8 ? "text-green-500" : ""}>
-                            • At least 8 characters
-                          </li>
                           <li className={/[A-Z]/.test(formData.password) ? "text-green-500" : ""}>
-                            • At least one uppercase letter
+                            • At least one uppercase letter {/[A-Z]/.test(formData.password) && "✓"}
+                          </li>
+                          <li className={/[a-z]/.test(formData.password) ? "text-green-500" : ""}>
+                            • At least one lowercase letter {/[a-z]/.test(formData.password) && "✓"}
                           </li>
                           <li className={/[0-9]/.test(formData.password) ? "text-green-500" : ""}>
-                            • At least one number
+                            • At least one number {/[0-9]/.test(formData.password) && "✓"}
                           </li>
                           <li className={/[^A-Za-z0-9]/.test(formData.password) ? "text-green-500" : ""}>
-                            • At least one special character
+                            • At least one special character {/[^A-Za-z0-9]/.test(formData.password) && "✓"}
+                          </li>
+                          <li className={formData.password.length >= 8 ? "text-green-500" : ""}>
+                            • Minimum 8 characters {formData.password.length >= 8 && "✓"}
                           </li>
                         </ul>
                       </div>
@@ -389,8 +532,26 @@ export default function SignUp() {
             </AnimatePresence>
           </CardContent>
 
-          <CardFooter className="flex flex-col space-y-4">
-            <Button onClick={handleNextStep} disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-700">
+          <CardFooter className="flex justify-between pt-2">
+            {step === 1 ? (
+              <div></div>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setStep(1)}
+                disabled={isLoading}
+                className="text-gray-500"
+              >
+                Back
+              </Button>
+            )}
+            <Button
+              type="button"
+              onClick={handleNextStep}
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               {isLoading ? (
                 <div className="flex items-center">
                   <svg
@@ -413,66 +574,25 @@ export default function SignUp() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Creating your account...
+                  {step === 1 ? "Next" : "Creating Account..."}
                 </div>
               ) : (
                 <>
-                  {step === 1 ? "Continue" : "Create Account"}
+                  {step === 1 ? "Next" : "Create Account"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               )}
             </Button>
-
-            {step === 2 && (
-              <Button variant="outline" onClick={() => setStep(1)} disabled={isLoading} className="w-full">
-                Back
-              </Button>
-            )}
           </CardFooter>
         </Card>
 
-        <div className="text-center mt-6">
+        <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Already have an account?{" "}
             <Link href="/login" className="text-blue-600 hover:underline font-medium">
               Log in
             </Link>
           </p>
-        </div>
-
-        <div className="mt-12 text-center">
-          <div className="flex justify-center space-x-6">
-            <div className="text-center">
-              <div className="bg-blue-100 rounded-full p-3 inline-flex items-center justify-center mb-2">
-                <CheckCircle className="h-5 w-5 text-blue-600" />
-              </div>
-              <p className="text-xs text-gray-600">
-                Bank-level
-                <br />
-                security
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="bg-blue-100 rounded-full p-3 inline-flex items-center justify-center mb-2">
-                <CheckCircle className="h-5 w-5 text-blue-600" />
-              </div>
-              <p className="text-xs text-gray-600">
-                Free to
-                <br />
-                use
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="bg-blue-100 rounded-full p-3 inline-flex items-center justify-center mb-2">
-                <CheckCircle className="h-5 w-5 text-blue-600" />
-              </div>
-              <p className="text-xs text-gray-600">
-                Cancel
-                <br />
-                anytime
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
