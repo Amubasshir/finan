@@ -1,90 +1,16 @@
 "use client"
 
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { useParams } from "next/navigation"
+import { loanInfoAPI } from "@/lib/api"
+import { LoanApplicationInterface } from "@/lib/types/loanAplication"
 
 // Define the shape of our form data
-interface LoanInfoData {
-  // Property Information
-  propertyType: string
-  propertyValue: number
-  propertyAddress: string
-  propertyUsage: string
-  propertyAge: number
-  bedrooms: number
-  bathrooms: number
-  currentMortgage: number
-  currentLender: string
-  currentInterestRate: number
-
-  // Personal Information
-  fullName: string
-  email: string
-  phone: string
-  dateOfBirth: string
-  maritalStatus: string
-  dependents: number
-
-  // Employment Information
-  employmentStatus: string
-  employerName: string
-  jobTitle: string
-  yearsInCurrentJob: number
-  annualIncome: number
-  additionalIncome: number
-  isSelfEmployed: boolean
-  // Self-employed specific fields
-  businessType: string
-  abnAcn: string
-  businessIndustry: string
-  annualBusinessRevenue: number
-  // Partner details
-  hasPartner: boolean
-  partnerEmploymentStatus: string
-  partnerEmployerName: string
-  partnerJobTitle: string
-  partnerYearsInCurrentJob: number
-  partnerAnnualIncome: number
-  partnerIsSelfEmployed: boolean
-  partnerBusinessType: string
-  partnerAbnAcn: string
-  partnerBusinessIndustry: string
-  partnerAnnualBusinessRevenue: number
-
-  // Financial Information
-  creditScore: string
-  monthlyExpenses: number
-  existingDebts: number
-  bankruptcyHistory: string
-  savingsBalance: number
-  investments: number
-  otherAssets: number
-
-  // Loan Requirements
-  loanAmount: number
-  loanPurpose: string
-  loanTerm: number
-  interestRatePreference: string
-  loanType: string
-  fixedRateTerm: number
-
-  // Additional Features
-  offsetAccount: boolean
-  redrawFacility: boolean
-  extraRepayments: boolean
-  interestOnly: boolean
-  fixedRate: boolean
-  splitLoan: boolean
-  packageDiscount: boolean
-  noFees: boolean
-  portability: boolean
-  parentGuarantee: boolean
-
-  // Any other fields
-  [key: string]: any
-}
+// We can reuse the interface from lib/types/loanInfo.ts
+// import { LoanInfoData } from "@/lib/types/loanInfo"
 
 // Update the defaultFormData to include the new fields
-const defaultFormData: LoanInfoData = {
+const defaultFormData: LoanApplicationInterface = {
   // Property Information
   propertyType: "",
   propertyValue: 500000,
@@ -163,31 +89,82 @@ const defaultFormData: LoanInfoData = {
 
 // Create the context
 interface LoanInfoContextType {
-  formData: LoanInfoData
+  formData: LoanApplicationInterface
   updateFormData: (field: string, value: any) => void
-  updateMultipleFields: (fields: Partial<LoanInfoData>) => void
+  updateMultipleFields: (fields: Partial<LoanApplicationInterface>) => void
   resetForm: () => void
+  saveToServer: () => Promise<void>
+  isLoading: boolean
+  error: string | null
+  loanInfoId: string | null
 }
 
 const LoanInfoContext = createContext<LoanInfoContextType | undefined>(undefined)
 
 // Create the provider component
 export function LoanInfoProvider({ children }: { children: ReactNode }) {
-  // Initialize state with default values
-  const [formData, setFormData] = useState<LoanInfoData>(() => {
-    // Try to load from localStorage if available (client-side only)
-    if (typeof window !== "undefined") {
-      const savedData = localStorage.getItem("loanInfoFormData")
-      if (savedData) {
+  const params = useParams()
+  const loanInfoId = params?.id as string || null
+  
+  // State for form data and API interaction
+  const [formData, setFormData] = useState<LoanApplicationInterface>(defaultFormData)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Load data from server or localStorage on mount
+  useEffect(() => {
+    const loadData = async () => {
+      setIsMounted(true)
+      
+      if (loanInfoId) {
+        // If we have an ID, try to load from server
         try {
-          return JSON.parse(savedData)
-        } catch (error) {
-          console.error("Failed to parse saved form data:", error)
+          setIsLoading(true)
+          setError(null)
+          const response = await loanInfoAPI.getLoanInfoById(loanInfoId)
+          if (response.data.success) {
+            setFormData(response.data.loanInfo)
+            // Also update localStorage for backup
+            if (typeof window !== "undefined") {
+              localStorage.setItem("loanInfoFormData", JSON.stringify(response.data.loanInfo))
+            }
+          }
+        } catch (err: any) {
+          console.error("Failed to load loan info:", err)
+          setError(err.message || "Failed to load loan information")
+          
+          // Fall back to localStorage if available
+          if (typeof window !== "undefined") {
+            const savedData = localStorage.getItem("loanInfoFormData")
+            if (savedData) {
+              try {
+                setFormData(JSON.parse(savedData))
+              } catch (parseErr) {
+                console.error("Failed to parse saved form data:", parseErr)
+              }
+            }
+          }
+        } finally {
+          setIsLoading(false)
+        }
+      } else {
+        // No ID, just load from localStorage
+        if (typeof window !== "undefined") {
+          const savedData = localStorage.getItem("loanInfoFormData")
+          if (savedData) {
+            try {
+              setFormData(JSON.parse(savedData))
+            } catch (error) {
+              console.error("Failed to parse saved form data:", error)
+            }
+          }
         }
       }
     }
-    return defaultFormData
-  })
+
+    loadData()
+  }, [loanInfoId])
 
   // Function to update a single field
   const updateFormData = (field: string, value: any) => {
@@ -204,7 +181,7 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
   }
 
   // Function to update multiple fields at once
-  const updateMultipleFields = (fields: Partial<LoanInfoData>) => {
+  const updateMultipleFields = (fields: Partial<LoanApplicationInterface>) => {
     setFormData((prev) => {
       const newData = { ...prev, ...fields }
 
@@ -224,15 +201,59 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem("loanInfoFormData")
     }
   }
+  
+  // Function to save data to server
+  const saveToServer = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      
+      if (loanInfoId) {
+        // Update existing loan info
+        const response = await loanInfoAPI.updateLoanInfo(loanInfoId, formData)
+        if (!response.data.success) {
+          throw new Error(response.data.message || "Failed to update loan information")
+        }
+      } else {
+        // Create new loan info
+        const response = await loanInfoAPI.createLoanInfo(formData)
+        if (!response.data.success) {
+          throw new Error(response.data.message || "Failed to create loan information")
+        }
+      }
+    } catch (err: any) {
+      console.error("Failed to save loan info:", err)
+      setError(err.message || "Failed to save loan information")
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Only provide the context if we're mounted (to avoid hydration issues)
+  if (!isMounted) {
+    return <>{children}</>
+  }
 
   return (
-    <LoanInfoContext.Provider value={{ formData, updateFormData, updateMultipleFields, resetForm }}>
+    <LoanInfoContext.Provider 
+      value={{ 
+        formData, 
+        updateFormData, 
+        updateMultipleFields, 
+        resetForm, 
+        saveToServer,
+        isLoading,
+        error,
+        loanInfoId
+      }}
+    >
       {children}
     </LoanInfoContext.Provider>
   )
 }
 
-// Custom hook to use the context
+// Custom hook to use the loan info context
 export function useLoanInfo() {
   const context = useContext(LoanInfoContext)
   if (context === undefined) {
