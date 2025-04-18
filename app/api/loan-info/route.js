@@ -1,14 +1,15 @@
+// Fix the import statement for connectDB
 import { NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
+import connectDB from '@/lib/db';  // Remove curly braces
 import LoanInfo from '@/models/LoanInfo';
 import { verifyToken } from '@/lib/auth';
 
 // Get all loan info for the current user
+// Convert exports to proper Next.js route handlers
 export async function GET(request) {
   try {
     await connectDB();
     
-    // Get user ID from token
     const userId = await verifyToken(request);
     if (!userId) {
       return NextResponse.json(
@@ -17,7 +18,6 @@ export async function GET(request) {
       );
     }
     
-    // Find all loan info for the current user
     const loanInfos = await LoanInfo.find({ userId }).sort({ updatedAt: -1 });
     
     return NextResponse.json(
@@ -33,12 +33,10 @@ export async function GET(request) {
   }
 }
 
-// Create a new loan info
 export async function POST(request) {
   try {
     await connectDB();
     
-    // Get user ID from token
     const userId = await verifyToken(request);
     if (!userId) {
       return NextResponse.json(
@@ -49,7 +47,6 @@ export async function POST(request) {
     
     const data = await request.json();
     
-    // Create new loan info with the user ID
     const newLoanInfo = new LoanInfo({
       ...data,
       userId,

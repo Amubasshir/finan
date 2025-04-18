@@ -165,13 +165,18 @@ function LoanInfoLayoutContent({ children }: { children: ReactNode }) {
           </p>
 
           {/* Progress bar */}
+          {/* Progress bar with centered percentage */}
           <div className="mb-8">
-            <Progress value={((currentStepIndex + 1) / steps.length) * 100} className="h-2 bg-gray-100" />
-            <div className="text-right text-sm text-gray-500 mt-1">
-              Step {currentStepIndex + 1} of {steps.length}
+            <div className="flex justify-between items-center mb-1">
+              <div className="text-sm text-gray-500">
+                Step {currentStepIndex + 1} of {steps.length}
+              </div>
+              <div className="text-sm text-gray-500 font-medium">
+                {Math.round(((currentStepIndex + 1) / steps.length) * 100)}%
+              </div>
             </div>
+            <Progress value={((currentStepIndex + 1) / steps.length) * 100} className="h-2 bg-gray-100" />
           </div>
-
           {/* Step indicators */}
           <div className="flex justify-between mb-10 overflow-x-auto pb-2 hide-scrollbar">
             {steps.map((step, index) => {
@@ -183,26 +188,23 @@ function LoanInfoLayoutContent({ children }: { children: ReactNode }) {
                 <div
                   key={step.name}
                   onClick={() => (isAccessible ? goToStep(index) : null)}
-                  className={`flex flex-col items-center mx-1 ${
-                    isAccessible ? "cursor-pointer" : "cursor-not-allowed opacity-50"
-                  }`}
+                  className={`flex flex-col items-center mx-1 ${isAccessible ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+                    }`}
                   style={{ minWidth: "80px" }}
                 >
                   <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 text-xl transition-all duration-300 ${
-                      index === currentStepIndex
+                    className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 text-xl transition-all duration-300 ${index === currentStepIndex
                         ? "bg-blue-600 text-white ring-4 ring-blue-100"
                         : isCompleted
                           ? "bg-green-100 text-green-600 border border-green-200"
                           : "bg-gray-100 text-gray-400 border border-gray-200"
-                    }`}
+                      }`}
                   >
                     {isCompleted ? <CheckCircle className="h-6 w-6" /> : step.icon}
                   </div>
                   <span
-                    className={`text-xs font-medium text-center ${
-                      index === currentStepIndex ? "text-blue-600" : isCompleted ? "text-green-600" : "text-gray-500"
-                    }`}
+                    className={`text-xs font-medium text-center ${index === currentStepIndex ? "text-blue-600" : isCompleted ? "text-green-600" : "text-gray-500"
+                      }`}
                   >
                     {step.name}
                   </span>
@@ -253,7 +255,7 @@ function LoanInfoLayoutContent({ children }: { children: ReactNode }) {
           </motion.div>
 
           {/* Navigation buttons */}
-          <div className="flex justify-between mt-6">
+          {/* <div className="flex justify-between mt-6">
             <Button
               onClick={goToPreviousStep}
               disabled={currentStepIndex === 0 || isNavigating}
@@ -276,7 +278,7 @@ function LoanInfoLayoutContent({ children }: { children: ReactNode }) {
                 </span>
               )}
             </Button>
-          </div>
+          </div> */}
         </div>
 
         {/* Help section */}

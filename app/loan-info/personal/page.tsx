@@ -13,21 +13,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useLoanInfo } from "../LoanInfoContext"
 import { useToast } from "@/components/ui/use-toast"
 import { HelpCircle, User, Mail, Phone, Calendar, Users, Save, ArrowLeft, Loader2 } from "lucide-react"
-
+import moment from "moment"
 export default function PersonalInformation() {
   const router = useRouter()
   const { toast } = useToast()
   const { formData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
 
   // Initialize state with data from context or localStorage
-  const [personalData, setPersonalData] = useState({
-    fullName: formData.fullName || "",
-    email: formData.email || "",
-    phone: formData.phone || "",
-    dateOfBirth: formData.dateOfBirth || "",
-    maritalStatus: formData.maritalStatus || "",
-    dependents: formData.dependents || 0,
-  })
+  const [personalData, setPersonalData] = useState(() => ({
+    fullName: formData?.personal?.fullName || "",
+    email: formData?.personal?.email || "",
+    phone: formData?.personal?.phone || "",
+    dateOfBirth: formData?.personal?.dateOfBirth || "",
+    maritalStatus: formData?.personal?.maritalStatus || "",
+    dependents: formData?.personal?.dependents || 0,
+  }))
+
+  // Update form state when context data changes
+  useEffect(() => {
+    if (formData?.personal) {
+      setPersonalData({
+        fullName: formData.personal.fullName || "",
+        email: formData.personal.email || "",
+        phone: formData.personal.phone || "",
+        dateOfBirth: formData.personal.dateOfBirth || "",
+        maritalStatus: formData.personal.maritalStatus || "",
+        dependents: formData.personal.dependents || 0,
+      })
+    }
+  }, [formData])
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -122,11 +136,8 @@ export default function PersonalInformation() {
     }
 
     try {
-      // Save all form data to context
-      updateMultipleFields(personalData)
-
       // Save to server before navigating
-      const result:any = await saveToServer()
+      const result:any = await saveToServer({personal:personalData})
 
       if (result.success) {
         toast({
@@ -153,6 +164,8 @@ export default function PersonalInformation() {
       })
     }
   }
+
+  console.log("personalData", personalData)
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="space-y-6">
@@ -213,7 +226,7 @@ export default function PersonalInformation() {
                 id="dateOfBirth"
                 name="dateOfBirth"
                 type="date"
-                value={personalData.dateOfBirth}
+                value={moment(personalData.dateOfBirth).format("YYYY-MM-DD")}
                 onChange={handleInputChange}
                 className="border-gray-300 focus:ring-blue-500 focus:border-blue-500"
               />

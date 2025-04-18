@@ -190,7 +190,7 @@ export default function SignUp() {
         
         // Redirect to the loan information form after a short delay
         setTimeout(() => {
-          router.push("/loan-info/new/property");
+          router.push("/loan-info/property");
         }, 1000);
       } else {
         throw new Error('Invalid response from server');
@@ -206,6 +206,7 @@ export default function SignUp() {
           phone: "Please provide a valid phone number"
         }));
         setStep(1); // Go back to first step if phone number is invalid
+
       } else if (error.status === 409) {
         setApiError('This email is already registered. Please try logging in instead.');
       } else if (error.status === 400) {
@@ -286,6 +287,19 @@ export default function SignUp() {
 
   const passwordStrength = getPasswordStrength(formData.password)
 
+  useEffect(() => {
+   
+    try {
+      const token:any = localStorage.getItem('token');
+
+      if (token) {
+       
+        router.push("/loan-info/property");
+      }
+    } catch (error) {
+      
+    }
+  }, [])
   // The JSX return with the added top progress bar
   return (
     <div className="min-h-screen bg-gray-50 py-12 pt-16">

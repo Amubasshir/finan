@@ -1,26 +1,46 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { HelpCircle, DollarSign, Clock, Percent } from "lucide-react"
+import { HelpCircle, DollarSign, Clock, Percent, Save, Loader2, ArrowLeft } from "lucide-react"
 import { useLoanInfo } from "../LoanInfoContext"
-
+import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 export default function LoanRequirements() {
-  const { formData, updateFormData } = useLoanInfo()
-  const [formState, setFormState] = useState({
-    loanAmount: formData.loanAmount || 400000,
-    loanPurpose: formData.loanPurpose || "",
-    loanTerm: formData.loanTerm || 30,
-    interestRatePreference: formData.interestRatePreference || "",
-    loanType: formData.loanType || "",
-    fixedRateTerm: formData.fixedRateTerm || 3,
-  })
+  const { formData, updateFormData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
 
+  // Initialize state with data from context
+  const [formState, setFormState] = useState(() => ({
+    loanAmount: formData?.loanRequirements?.loanAmount || 400000,
+    loanPurpose: formData?.loanRequirements?.loanPurpose || "",
+    loanTerm: formData?.loanRequirements?.loanTerm || 30,
+    interestRatePreference: formData?.loanRequirements?.interestRatePreference || "",
+    loanType: formData?.loanRequirements?.loanType || "",
+    fixedRateTerm: formData?.loanRequirements?.fixedRateTerm || 3,
+  }))
+
+  // Update form state when context data changes
+  useEffect(() => {
+    if (formData?.loanRequirements) {
+      setFormState({
+        loanAmount: formData.loanRequirements.loanAmount || 400000,
+        loanPurpose: formData.loanRequirements.loanPurpose || "",
+        loanTerm: formData.loanRequirements.loanTerm || 30,
+        interestRatePreference: formData.loanRequirements.interestRatePreference || "",
+        loanType: formData.loanRequirements.loanType || "",
+        fixedRateTerm: formData.loanRequirements.fixedRateTerm || 3,
+      })
+    }
+  }, [formData])
+
+  const router = useRouter()
+  const { toast } = useToast()
   const handleSelectChange = (name: string) => (value: string) => {
     setFormState((prev) => ({ ...prev, [name]: value }))
     updateFormData(name, value)
@@ -51,6 +71,32 @@ export default function LoanRequirements() {
 
   const monthlyRepayment = calculateMonthlyRepayment()
 
+  const handleSubmit = async () => {
+
+
+    try {
+      // Save to server before navigating
+      const result:any = await saveToServer({loanRequirements:formState})
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Loan requirement features features saved successfully.",
+          variant: "default",
+        })
+        router.push(`/loan-info/additional-features`)
+      } else {
+        toast({
+          title: "Error", 
+          description: result.errorMessage || "Failed to save Loan requirement. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      console.error("Failed to save employment information:", err)
+      // Display error to user if needed
+    } finally {
+    }
+  }
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="space-y-6">
       <Card className="overflow-hidden border-0 shadow-sm">
@@ -291,6 +337,38 @@ export default function LoanRequirements() {
             </p>
           </div>
         </div>
+        <div className="flex justify-between mt-6">
+        <Button
+          variant="outline"
+          onClick={() => router.push(`/loan-info/financial`)}
+          disabled={isLoading}
+          className="flex items-center"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 flex items-center"
+          disabled={isLoading }
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Save and Continue
+            </>
+          )}
+        </Button>
+      </div>
+
+      <div className="text-sm text-gray-500 italic">
+        <span className="text-red-500">*</span> Required fields must be completed before proceeding to the next step.
+      </div>
       </motion.div>
     </motion.div>
   )

@@ -10,62 +10,93 @@ import { HelpCircle, Wallet, Repeat, Clock, Percent, CreditCard, Home, ArrowLeft
 import { useLoanInfo } from "../LoanInfoContext"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
 
 export default function AdditionalFeatures() {
-  const { formData, updateFormData, saveToServer, isLoading, error, loanId } = useLoanInfo()
+  const { formData, updateFormData, saveToServer, isLoading } = useLoanInfo()
   const router = useRouter()
-  const [formState, setFormState] = useState({
-    offsetAccount: formData.offsetAccount || false,
-    redrawFacility: formData.redrawFacility || false,
-    extraRepayments: formData.extraRepayments || false,
-    interestOnly: formData.interestOnly || false,
-    fixedRate: formData.fixedRate || false,
-    splitLoan: formData.splitLoan || false,
-    packageDiscount: formData.packageDiscount || false,
-    noFees: formData.noFees || false,
-    portability: formData.portability || false,
-    parentGuarantee: formData.parentGuarantee || false,
-  })
-  const [isSaving, setIsSaving] = useState(false)
+  const { toast } = useToast()
+  const [error, setError] = useState<string | null>(null)
+  
+  // Initialize formState with default values from formData
+  const [formState, setFormState] = useState(() => ({
+    offsetAccount: formData?.additionalFeatures?.offsetAccount || false,
+    redrawFacility: formData?.additionalFeatures?.redrawFacility || false,
+    extraRepayments: formData?.additionalFeatures?.extraRepayments || false,
+    interestOnly: formData?.additionalFeatures?.interestOnly || false,
+    fixedRate: formData?.additionalFeatures?.fixedRate || false,
+    splitLoan: formData?.additionalFeatures?.splitLoan || false,
+    packageDiscount: formData?.additionalFeatures?.packageDiscount || false,
+    noFees: formData?.additionalFeatures?.noFees || false,
+    portability: formData?.additionalFeatures?.portability || false,
+    parentGuarantee: formData?.additionalFeatures?.parentGuarantee || false,
+  }))
 
-  // Update local state when formData changes (e.g., when loaded from API)
+  // Update local state when formData changes
+  // Remove the duplicate useEffect and keep only this one
   useEffect(() => {
-    setFormState({
-      offsetAccount: formData.offsetAccount || false,
-      redrawFacility: formData.redrawFacility || false,
-      extraRepayments: formData.extraRepayments || false,
-      interestOnly: formData.interestOnly || false,
-      fixedRate: formData.fixedRate || false,
-      splitLoan: formData.splitLoan || false,
-      packageDiscount: formData.packageDiscount || false,
-      noFees: formData.noFees || false,
-      portability: formData.portability || false,
-      parentGuarantee: formData.parentGuarantee || false,
-    })
+    if (formData?.additionalFeatures) {
+      setFormState({
+        offsetAccount: formData.additionalFeatures.offsetAccount || false,
+        redrawFacility: formData.additionalFeatures.redrawFacility || false,
+        extraRepayments: formData.additionalFeatures.extraRepayments || false,
+        interestOnly: formData.additionalFeatures.interestOnly || false,
+        fixedRate: formData.additionalFeatures.fixedRate || false,
+        splitLoan: formData.additionalFeatures.splitLoan || false,
+        packageDiscount: formData.additionalFeatures.packageDiscount || false,
+        noFees: formData.additionalFeatures.noFees || false,
+        portability: formData.additionalFeatures.portability || false,
+        parentGuarantee: formData.additionalFeatures.parentGuarantee || false,
+      })
+    }
   }, [formData])
 
-  const handleCheckboxChange = (name: string) => (checked: boolean) => {
-    setFormState((prev) => ({ ...prev, [name]: checked }))
-    updateFormData(name, checked)
+
+
+
+
+  const handleCheckboxChange = (name: string) => (checked: boolean | string) => {
+    const isChecked = checked === true || checked === 'true';
+    // Update local state
+    setFormState((prev) => ({ ...prev, [name]: isChecked }));
+    // Update parent state with the full additionalFeatures object
+    updateFormData('additionalFeatures', {
+      ...formState,
+      [name]: isChecked
+    });
   }
 
   const handleSave = async () => {
     try {
-      setIsSaving(true)
+    
       // Update status to submitted when saving the final step
       updateFormData("status", "submitted")
-      await saveToServer()
-      // Navigate to the summary page
-      router.push(`/loan-info/${loanId || 'new'}/summary`)
+      const result:any = await saveToServer({additionalFeatures:formState})
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Additional features successfully!",
+          variant: "default",
+        })
+        router.push(`/loan-info/review`)
+      } else {
+        setError(result.errorMessage)
+        toast({
+          title: "Error",
+          description: result.errorMessage || "Failed to Additional features application",
+          variant: "destructive",
+        })
+      }
     } catch (err) {
       console.error("Failed to save:", err)
+      setError("An unexpected error occurred. Please try again.")
     } finally {
-      setIsSaving(false)
+     
     }
   }
 
   const handleBack = () => {
-    router.push(`/loan-info/${loanId || 'new'}/loan-requirements`)
+    router.push(`/loan-info/loan-requirements`)
   }
 
   // Keep your existing features array
@@ -138,26 +169,6 @@ export default function AdditionalFeatures() {
         <CardContent className="p-6">
           <motion.div initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900">Desired Loan Features</h3>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center text-sm text-blue-600">
-                        <HelpCircle className="h-4 w-4 mr-1" />
-                        <span>What are these?</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs">
-                        Select the features that are important to you. These will help us find the most suitable loan
-                        options.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {features.map((feature, index) => (
                   <motion.div
@@ -165,12 +176,12 @@ export default function AdditionalFeatures() {
                     initial={{ x: index % 2 === 0 ? -20 : 20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: 0.1 + index * 0.05 }}
-                    className={`flex items-start space-x-3 p-3 rounded-lg transition-colors ${
-                      formState[feature.id as keyof typeof formState]
+                    className={`flex items-start space-x-3 p-3 rounded-lg transition-colors ${formState[feature.id as keyof typeof formState]
                         ? "bg-blue-50 border border-blue-100"
                         : "bg-gray-50 border border-gray-100 hover:bg-gray-100"
-                    }`}
+                      }`}
                   >
+                  
                     <Checkbox
                       id={feature.id}
                       checked={formState[feature.id as keyof typeof formState]}
@@ -182,9 +193,8 @@ export default function AdditionalFeatures() {
                         {feature.icon}
                         <Label
                           htmlFor={feature.id}
-                          className={`ml-2 font-medium ${
-                            formState[feature.id as keyof typeof formState] ? "text-blue-700" : "text-gray-700"
-                          }`}
+                          className={`ml-2 font-medium ${formState[feature.id as keyof typeof formState] ? "text-blue-700" : "text-gray-700"
+                            }`}
                         >
                           {feature.name}
                         </Label>
@@ -201,20 +211,20 @@ export default function AdditionalFeatures() {
 
       {/* Navigation buttons */}
       <div className="flex justify-between items-center mt-6">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={handleBack}
           className="flex items-center"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
-        <Button 
-          onClick={handleSave} 
-          disabled={isLoading || isSaving}
+        <Button
+          onClick={handleSave}
+          disabled={isLoading}
           className="bg-blue-600 hover:bg-blue-700 text-white flex items-center"
         >
-          {(isLoading || isSaving) ? (
+          {(isLoading) ? (
             <>
               <span className="animate-spin mr-2">⟳</span>
               Saving...
@@ -227,7 +237,7 @@ export default function AdditionalFeatures() {
           )}
         </Button>
       </div>
-      
+
       {/* Error message */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-md">

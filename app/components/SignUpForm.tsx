@@ -32,8 +32,6 @@ export default function SignUpForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     console.log("Form submitted:", formData)
-
-    // In a real application, you would send this data to your backend for user registration
     // For this example, we'll simulate a successful registration and redirect
 
     router.push("/self-refinancing-explained")

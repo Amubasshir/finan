@@ -101,10 +101,10 @@ export default function Login() {
       
       // Redirect to loan information form after a short delay
       setTimeout(() => {
-        router.push("/loan-info/new/property");
+        router.push("/loan-info/property");
       }, 1000);
       
-    } catch (error) {
+    } catch (error:any) {
       console.error('Login error:', error);
       setApiError(error?.message || 'Invalid email or password. Please try again.');
     } finally {

@@ -1,5 +1,6 @@
+// Update import statements
 import { NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
+import connectDB from '@/lib/db';  // Remove curly braces
 import LoanInfo from '@/models/LoanInfo';
 import { verifyToken } from '@/lib/auth';
 
@@ -8,7 +9,6 @@ export async function GET(request, { params }) {
   try {
     await connectDB();
     
-    // Get user ID from token
     const userId = await verifyToken(request);
     if (!userId) {
       return NextResponse.json(
@@ -19,7 +19,6 @@ export async function GET(request, { params }) {
     
     const { id } = params;
     
-    // Find loan info by ID and ensure it belongs to the current user
     const loanInfo = await LoanInfo.findOne({ _id: id, userId });
     
     if (!loanInfo) {
@@ -42,12 +41,10 @@ export async function GET(request, { params }) {
   }
 }
 
-// Update a loan info
 export async function PUT(request, { params }) {
   try {
     await connectDB();
     
-    // Get user ID from token
     const userId = await verifyToken(request);
     if (!userId) {
       return NextResponse.json(
@@ -59,7 +56,6 @@ export async function PUT(request, { params }) {
     const { id } = params;
     const updateData = await request.json();
     
-    // Find and update loan info, ensuring it belongs to the current user
     const updatedLoanInfo = await LoanInfo.findOneAndUpdate(
       { _id: id, userId },
       { $set: updateData },
@@ -86,12 +82,10 @@ export async function PUT(request, { params }) {
   }
 }
 
-// Delete a loan info
 export async function DELETE(request, { params }) {
   try {
     await connectDB();
     
-    // Get user ID from token
     const userId = await verifyToken(request);
     if (!userId) {
       return NextResponse.json(
@@ -102,7 +96,6 @@ export async function DELETE(request, { params }) {
     
     const { id } = params;
     
-    // Find and delete loan info, ensuring it belongs to the current user
     const deletedLoanInfo = await LoanInfo.findOneAndDelete({ _id: id, userId });
     
     if (!deletedLoanInfo) {

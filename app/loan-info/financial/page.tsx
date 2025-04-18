@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,27 +10,55 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { HelpCircle, DollarSign, CreditCard, Landmark, AlertTriangle } from "lucide-react"
+import { HelpCircle, DollarSign, CreditCard, Landmark, AlertTriangle, Loader2, Save } from "lucide-react"
 import { useLoanInfo } from "../LoanInfoContext"
-
+import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
 export default function FinancialInfo() {
-  const { formData, updateFormData } = useLoanInfo()
-  const [formState, setFormState] = useState({
-    creditScore: formData.creditScore || "",
-    monthlyExpenses: formData.monthlyExpenses || 2000,
-    existingDebts: formData.existingDebts || 0,
-    bankruptcyHistory: formData.bankruptcyHistory || "",
-    savingsBalance: formData.savingsBalance || 20000,
-    investments: formData.investments || 0,
-    otherAssets: formData.otherAssets || 0,
-    currentMortgage: formData.currentMortgage || 0,
-    currentLender: formData.currentLender || "",
-    currentInterestRate: formData.currentInterestRate || 0,
-    currentLoanTerm: formData.currentLoanTerm || 0,
-    remainingLoanTerm: formData.remainingLoanTerm || 0,
-    fixedRateExpiry: formData.fixedRateExpiry || "",
-    exitFees: formData.exitFees || 0,
-  })
+  const { formData, updateFormData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
+  const { toast } = useToast()
+  const router = useRouter()
+
+  // Initialize state with data from context
+  const [formState, setFormState] = useState(() => ({
+    creditScore: formData?.financial?.creditScore || "",
+    monthlyExpenses: formData?.financial?.monthlyExpenses || 2000,
+    existingDebts: formData?.financial?.existingDebts || 0,
+    bankruptcyHistory: formData?.financial?.bankruptcyHistory || "",
+    savingsBalance: formData?.financial?.savingsBalance || 20000,
+    investments: formData?.financial?.investments || 0,
+    otherAssets: formData?.financial?.otherAssets || 0,
+    currentMortgage: formData?.financial?.currentMortgage || 0,
+    currentLender: formData?.financial?.currentLender || "",
+    currentInterestRate: formData?.financial?.currentInterestRate || 0,
+    currentLoanTerm: formData?.financial?.currentLoanTerm || 0,
+    remainingLoanTerm: formData?.financial?.remainingLoanTerm || 0,
+    fixedRateExpiry: formData?.financial?.fixedRateExpiry || "",
+    exitFees: formData?.financial?.exitFees || 0,
+  }))
+
+  // Update form state when context data changes
+  useEffect(() => {
+    if (formData?.financial) {
+      setFormState({
+        creditScore: formData.financial.creditScore || "",
+        monthlyExpenses: formData.financial.monthlyExpenses || 2000,
+        existingDebts: formData.financial.existingDebts || 0,
+        bankruptcyHistory: formData.financial.bankruptcyHistory || "",
+        savingsBalance: formData.financial.savingsBalance || 20000,
+        investments: formData.financial.investments || 0,
+        otherAssets: formData.financial.otherAssets || 0,
+        currentMortgage: formData.financial.currentMortgage || 0,
+        currentLender: formData.financial.currentLender || "",
+        currentInterestRate: formData.financial.currentInterestRate || 0,
+        currentLoanTerm: formData.financial.currentLoanTerm || 0,
+        remainingLoanTerm: formData.financial.remainingLoanTerm || 0,
+        fixedRateExpiry: formData.financial.fixedRateExpiry || "",
+        exitFees: formData.financial.exitFees || 0,
+      })
+    }
+  }, [formData])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -50,6 +78,38 @@ export default function FinancialInfo() {
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(value)
+  }
+
+
+  const handleSubmit = async () => {
+
+
+    try {
+
+      // Save all form data to context
+      updateMultipleFields(formState)
+
+      // Save to server before navigating
+      const result:any = await saveToServer({financial:formState})
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Loan requirements information saved successfully.",
+          variant: "default",
+        })
+        router.push(`/loan-info/loan-requirements`)
+      } else {
+        toast({
+          title: "Error", 
+          description: result.errorMessage || "Failed to save Loan requirements information. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      console.error("Failed to save employment information:", err)
+      // Display error to user if needed
+    } finally {
+    }
   }
 
   return (
@@ -411,6 +471,38 @@ export default function FinancialInfo() {
             </p>
           </div>
         </div>
+
+      <div className="flex justify-between mt-6">
+        <Button
+          variant="outline"
+          onClick={() => router.push(`/loan-info/employment`)}
+          disabled={isLoading}
+        >
+          Back
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 flex items-center"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Save and Continue
+            </>
+          )}
+        </Button>
+      </div>
+
+
+      <div className="text-sm text-gray-500 italic">
+        <span className="text-red-500">*</span> Required fields must be completed before proceeding to the next step.
+      </div>
       </motion.div>
     </motion.div>
   )

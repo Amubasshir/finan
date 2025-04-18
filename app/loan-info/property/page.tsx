@@ -21,18 +21,37 @@ export default function PropertyInfo() {
   const { toast } = useToast()
   const { formData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
 
-  const [formState, setFormState] = useState({
-    propertyType: formData.propertyType || "",
-    propertyValue: formData.propertyValue || 500000,
-    propertyAddress: formData.propertyAddress || "",
-    propertyUsage: formData.propertyUsage || "",
-    propertyAge: formData.propertyAge || 0,
-    bedrooms: formData.bedrooms || 3,
-    bathrooms: formData.bathrooms || 2,
-    currentMortgage: formData.currentMortgage || 400000,
-    currentLender: formData.currentLender || "",
-    currentInterestRate: formData.currentInterestRate || 0,
-  })
+  // Initialize formState with proper default values from formData
+  const [formState, setFormState] = useState(() => ({
+    propertyType: formData?.property?.propertyType || "",
+    propertyValue: formData?.property?.propertyValue || 500000,
+    propertyAddress: formData?.property?.propertyAddress || "",
+    propertyUsage: formData?.property?.propertyUsage || "",
+    propertyAge: formData?.property?.propertyAge || 0,
+    bedrooms: formData?.property?.bedrooms || 3,
+    bathrooms: formData?.property?.bathrooms || 2,
+    currentMortgage: formData?.property?.currentMortgage || 400000,
+    currentLender: formData?.property?.currentLender || "",
+    currentInterestRate: formData?.property?.currentInterestRate || 0,
+  }))
+
+  // Update form state when context data changes
+  useEffect(() => {
+    if (formData?.property) {
+      setFormState({
+        propertyType: formData.property.propertyType || "",
+        propertyValue: formData.property.propertyValue || 500000,
+        propertyAddress: formData.property.propertyAddress || "",
+        propertyUsage: formData.property.propertyUsage || "",
+        propertyAge: formData.property.propertyAge || 0,
+        bedrooms: formData.property.bedrooms || 3,
+        bathrooms: formData.property.bathrooms || 2,
+        currentMortgage: formData.property.currentMortgage || 400000,
+        currentLender: formData.property.currentLender || "",
+        currentInterestRate: formData.property.currentInterestRate || 0,
+      })
+    }
+  }, [formData])
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -51,6 +70,8 @@ export default function PropertyInfo() {
       currentLender: formData.currentLender || "",
       currentInterestRate: formData.currentInterestRate || 0,
     })
+
+
   }, [formData])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,11 +168,9 @@ export default function PropertyInfo() {
     }
 
     try {
-      // Save all form data to context
-      updateMultipleFields(formState)
-
+ 
       // Save to server before navigating
-      const result:any = await saveToServer()
+      const result:any = await saveToServer({property:formState})
       if (result.success) {
         toast({
           title: "Success",

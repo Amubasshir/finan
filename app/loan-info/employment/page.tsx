@@ -19,32 +19,61 @@ export default function EmploymentInformation() {
   const router = useRouter()
   const { formData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
 
-  const [employmentData, setEmploymentData] = useState({
-    employmentStatus: formData.employmentStatus || "",
-    employerName: formData.employerName || "",
-    jobTitle: formData.jobTitle || "",
-    yearsInCurrentJob: formData.yearsInCurrentJob || 0,
-    annualIncome: formData.annualIncome || 80000,
-    additionalIncome: formData.additionalIncome || 0,
-    isSelfEmployed: formData.isSelfEmployed || false,
-    // Self-employed specific fields
-    businessType: formData.businessType || "",
-    abnAcn: formData.abnAcn || "",
-    businessIndustry: formData.businessIndustry || "",
-    annualBusinessRevenue: formData.annualBusinessRevenue || 0,
-    // Partner details
-    hasPartner: formData.hasPartner || false,
-    partnerEmploymentStatus: formData.partnerEmploymentStatus || "",
-    partnerEmployerName: formData.partnerEmployerName || "",
-    partnerJobTitle: formData.partnerJobTitle || "",
-    partnerYearsInCurrentJob: formData.partnerYearsInCurrentJob || 0,
-    partnerAnnualIncome: formData.partnerAnnualIncome || 0,
-    partnerIsSelfEmployed: formData.partnerIsSelfEmployed || false,
-    partnerBusinessType: formData.partnerBusinessType || "",
-    partnerAbnAcn: formData.partnerAbnAcn || "",
-    partnerBusinessIndustry: formData.partnerBusinessIndustry || "",
-    partnerAnnualBusinessRevenue: formData.partnerAnnualBusinessRevenue || 0,
-  })
+  // Initialize state with data from context
+  const [employmentData, setEmploymentData] = useState(() => ({
+    employmentStatus: formData?.employment?.employmentStatus || "",
+    employerName: formData?.employment?.employerName || "",
+    jobTitle: formData?.employment?.jobTitle || "",
+    yearsInCurrentJob: formData?.employment?.yearsInCurrentJob || 0,
+    annualIncome: formData?.employment?.annualIncome || 80000,
+    additionalIncome: formData?.employment?.additionalIncome || 0,
+    isSelfEmployed: formData?.employment?.isSelfEmployed || false,
+    businessType: formData?.employment?.businessType || "",
+    abnAcn: formData?.employment?.abnAcn || "",
+    businessIndustry: formData?.employment?.businessIndustry || "",
+    annualBusinessRevenue: formData?.employment?.annualBusinessRevenue || 0,
+    hasPartner: formData?.employment?.hasPartner || false,
+    partnerEmploymentStatus: formData?.employment?.partnerEmploymentStatus || "",
+    partnerEmployerName: formData?.employment?.partnerEmployerName || "",
+    partnerJobTitle: formData?.employment?.partnerJobTitle || "",
+    partnerYearsInCurrentJob: formData?.employment?.partnerYearsInCurrentJob || 0,
+    partnerAnnualIncome: formData?.employment?.partnerAnnualIncome || 0,
+    partnerIsSelfEmployed: formData?.employment?.partnerIsSelfEmployed || false,
+    partnerBusinessType: formData?.employment?.partnerBusinessType || "",
+    partnerAbnAcn: formData?.employment?.partnerAbnAcn || "",
+    partnerBusinessIndustry: formData?.employment?.partnerBusinessIndustry || "",
+    partnerAnnualBusinessRevenue: formData?.employment?.partnerAnnualBusinessRevenue || 0,
+  }))
+
+  // Update form state when context data changes
+  useEffect(() => {
+    if (formData?.employment) {
+      setEmploymentData({
+        employmentStatus: formData.employment.employmentStatus || "",
+        employerName: formData.employment.employerName || "",
+        jobTitle: formData.employment.jobTitle || "",
+        yearsInCurrentJob: formData.employment.yearsInCurrentJob || 0,
+        annualIncome: formData.employment.annualIncome || 80000,
+        additionalIncome: formData.employment.additionalIncome || 0,
+        isSelfEmployed: formData.employment.isSelfEmployed || false,
+        businessType: formData.employment.businessType || "",
+        abnAcn: formData.employment.abnAcn || "",
+        businessIndustry: formData.employment.businessIndustry || "",
+        annualBusinessRevenue: formData.employment.annualBusinessRevenue || 0,
+        hasPartner: formData.employment.hasPartner || false,
+        partnerEmploymentStatus: formData.employment.partnerEmploymentStatus || "",
+        partnerEmployerName: formData.employment.partnerEmployerName || "",
+        partnerJobTitle: formData.employment.partnerJobTitle || "",
+        partnerYearsInCurrentJob: formData.employment.partnerYearsInCurrentJob || 0,
+        partnerAnnualIncome: formData.employment.partnerAnnualIncome || 0,
+        partnerIsSelfEmployed: formData.employment.partnerIsSelfEmployed || false,
+        partnerBusinessType: formData.employment.partnerBusinessType || "",
+        partnerAbnAcn: formData.employment.partnerAbnAcn || "",
+        partnerBusinessIndustry: formData.employment.partnerBusinessIndustry || "",
+        partnerAnnualBusinessRevenue: formData.employment.partnerAnnualBusinessRevenue || 0,
+      })
+    }
+  }, [formData])
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showSelfEmployedDetails, setShowSelfEmployedDetails] = useState(
@@ -210,23 +239,20 @@ export default function EmploymentInformation() {
 
     try {
 
-      // Save all form data to context
-      updateMultipleFields(employmentData)
-
       // Save to server before navigating
-      const result:any = await saveToServer()
+      const result:any = await saveToServer({employment:employmentData})
 
       if (result.success) {
         toast({
           title: "Success",
-          description: "Personal information saved successfully.",
+          description: "Employment information saved successfully.",
           variant: "default",
         })
         router.push(`/loan-info/financial`)
       } else {
         toast({
           title: "Error", 
-          description: result.errorMessage || "Failed to save personal information. Please try again.",
+          description: result.errorMessage || "Failed to save employment information. Please try again.",
           variant: "destructive",
         })
       }
