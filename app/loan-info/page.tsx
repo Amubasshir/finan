@@ -20,12 +20,12 @@ export default function LoanInfoDefaultPage() {
           router.push(`/loan-info/${response.data.loanInfo._id}/property`)
         } else {
           // If API fails, just redirect to a new loan
-          router.push("/loan-info/new/property")
+          router.push("/loan-info/property")
         }
       } catch (error) {
         console.error("Failed to create new loan:", error)
         // If API fails, just redirect to a new loan
-        router.push("/loan-info/new/property")
+        router.push("/loan-info/property")
       }
     }
     
