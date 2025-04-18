@@ -11,10 +11,13 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useLoanInfo } from "../LoanInfoContext"
+import { useToast } from "@/components/ui/use-toast"
+import { HelpCircle, User, Mail, Phone, Calendar, Users, Save, ArrowLeft, Loader2 } from "lucide-react"
 
 export default function PersonalInformation() {
   const router = useRouter()
-  const { formData, updateMultipleFields } = useLoanInfo()
+  const { toast } = useToast()
+  const { formData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
 
   // Initialize state with data from context or localStorage
   const [personalData, setPersonalData] = useState({
@@ -82,7 +85,14 @@ export default function PersonalInformation() {
     }
   }
 
-  const validateForm = () => {
+  const isFormValid = Boolean(
+    personalData.fullName.trim() &&
+    personalData.email.trim() &&
+    /\S+@\S+\.\S+/.test(personalData.email) &&
+    personalData.phone.trim()
+  )
+
+  const handleSubmit = async () => {
     const newErrors: Record<string, string> = {}
 
     if (!personalData.fullName.trim()) {
@@ -99,20 +109,49 @@ export default function PersonalInformation() {
       newErrors.phone = "Phone number is required"
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
 
-  const handleSubmit = () => {
-    if (!validateForm()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields correctly.",
+        variant: "destructive",
+      })
+
       return
     }
 
-    // Save all form data to context
-    updateMultipleFields(personalData)
+    try {
+      // Save all form data to context
+      updateMultipleFields(personalData)
 
-    // Navigate to next step
-    router.push("/loan-info/employment")
+      // Save to server before navigating
+      const result:any = await saveToServer()
+
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Personal information saved successfully.",
+          variant: "default",
+        })
+        router.push(`/loan-info/employment`)
+      }else{
+        toast({
+          title: "Error",
+          description: result.errorMessage || "Failed to save personal information. Please try again.",
+          variant: "destructive",
+        })
+      }
+      // Navigate to next step
+
+    } catch (err) {
+      console.error("Failed to save personal information:", err)
+      toast({
+        title: "Error",
+        description: "Failed to save personal information. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -214,12 +253,32 @@ export default function PersonalInformation() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end mt-6">
+      <div className="flex justify-between mt-6">
+        <Button
+          variant="outline"
+          onClick={() => router.push(`/loan-info/property`)}
+          disabled={isLoading}
+          className="flex items-center"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
         <Button
           onClick={handleSubmit}
-          className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+          className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 flex items-center"
+          disabled={isLoading || !isFormValid}
         >
-          Save and Continue
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Save and Continue
+            </>
+          )}
         </Button>
       </div>
 

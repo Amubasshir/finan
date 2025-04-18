@@ -1,7 +1,7 @@
 "use client"
 
 import api from "@/lib/axios"
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { useToast } from "@/components/ui/use-toast"
 const defaultFormData: any = {
   propertyType: "",
@@ -73,29 +73,23 @@ interface LoanInfoContextType {
   updateFormData: (field: string, value: any) => void
   updateMultipleFields: (fields: Partial<any>) => void
   resetForm: () => void
-  saveToServer: () => Promise<{ success: boolean; error?: string }>
+  saveToServer: () => Promise<{ success: boolean; errorMessage?: string; successMessage?: string }>
   isLoading: boolean
 }
 
 const LoanInfoContext = createContext<LoanInfoContextType | undefined>(undefined)
 
 // Create the provider component
+// Update the initial state loading logic
 export function LoanInfoProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState<any>(() => {
-    if (typeof window !== "undefined") {
-      const savedData = localStorage.getItem("loanInfoFormData")
-      if (savedData) {
-        try {
-          return JSON.parse(savedData)
-        } catch (error) {
-          console.error("Failed to parse saved form data:", error)
-        }
-      }
-    }
+    // Return default initially, will be updated after useEffect
     return defaultFormData
   })
-  const [isLoading, setIsLoading] = useState(false)
+
+
   const updateFormData = (field: string, value: any) => {
     setFormData((prev: any) => {
       const newData = { ...prev, [field]: value }
@@ -122,37 +116,123 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem("loanInfoFormData")
     }
   }
+  // Add new useEffect for initialization
+  // Remove the second useEffect that watches formData._id and combine it with the initialization useEffect
 
-  // New function to save form data to API
-  const saveToServer = async (): Promise<{ success: boolean; errorMessage?: string,successMessage?:string }> => {
+  // Update the useEffect dependency array
+  useEffect(() => {
+    const initializeFormData = async () => {
+      setIsLoading(true)
+      try {
+        const savedData = localStorage.getItem("loanInfoFormData")
+        let initialData = defaultFormData
+  
+        if (savedData) {
+          try {
+            const parsedData = JSON.parse(savedData)
+            initialData = parsedData
+  
+            if (parsedData?._id) {
+              const response = await api.get(`/loan-info/${parsedData._id}`)
+              if (response?.data?.loanInfo) {
+                initialData = response.data.loanInfo
+                localStorage.setItem("loanInfoFormData", JSON.stringify(initialData))
+              }
+            }
+            
+            setFormData(initialData)
+          } catch (error) {
+            console.error("Failed to process saved data:", error)
+            toast({
+              title: "Warning",
+              description: "Failed to load saved data. Starting with default values.",
+              variant: "destructive",
+            })
+            setFormData(defaultFormData)
+          }
+        } else {
+          setFormData(defaultFormData)
+        }
+      } catch (error) {
+        console.error("Failed to initialize form data:", error)
+        setFormData(defaultFormData)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+  
+    initializeFormData()
+  }, [toast]) // Add toast to the dependency array
+  
+  // Remove the duplicate useEffect that watches formData._id
+
+  // Update saveToServer function to handle _id properly
+  const saveToServer = async (): Promise<{ success: boolean; errorMessage?: string; successMessage?: string }> => {
     setIsLoading(true)
     try {
-      const loanId = formData?._id
-      delete formData._id
-      const response:any = loanId? await api.put(`/loan-info/${loanId}`, formData):await api.post(`/loan-info`, formData);
-      setFormData(response?.data?.loanInfo)
-      // Optionally update localStorage with the response data if needed
-      if (typeof window !== "undefined") {
-        localStorage.setItem("loanInfoFormData", JSON.stringify(formData))
-      }
-      toast({
-        title: "Success",
-        description: "Property information saved successfully.",
-        variant: "default",
-      })
-      
-      return { success: true,successMessage:response?.data?.message||"Data saved successfully" }
-    } catch (error:any) {
+      const dataToSave = { ...formData }
+      const loanId = dataToSave._id
+      delete dataToSave._id
   
+      const response: any = loanId
+        ? await api.put(`/loan-info/${loanId}`, dataToSave)
+        : await api.post(`/loan-info`, dataToSave)
+  
+      const updatedData = response?.data?.loanInfo
+      
+      // Update both state and localStorage with the response data
+      setFormData(updatedData)
+      localStorage.setItem("loanInfoFormData", JSON.stringify(updatedData))
+  
+      return {
+        success: true,
+        successMessage: response?.data?.message || "Data saved successfully"
+      }
+    } catch (error: any) {
       console.error("Failed to save form data:", error)
       return {
         success: false,
-        errorMessage:error?.response?.data?.message || error instanceof Error ? error.message : "Failed to save data"
+        errorMessage: error?.response?.data?.message || error instanceof Error ? error.message : "Failed to save data"
       }
     } finally {
       setIsLoading(false)
     }
   }
+
+// Fetch loan data when component mounts if formData._id exists
+useEffect(() => {
+  const fetchLoanData = async () => {
+    if (formData?._id) {
+      setIsLoading(true)
+      try {
+        const response = await api.get(`/loan-info/${formData?._id}`)
+        const loanInfo = response?.data?.loanInfo
+        setFormData(loanInfo)
+        
+        // Save to localStorage if window is available
+        if (typeof window !== "undefined") {
+          localStorage.setItem("loanInfoFormData", JSON.stringify(loanInfo))
+        }
+      } catch (error) {
+        console.error("Failed to fetch loan data:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch loan information",
+          variant: "destructive",
+        })
+        
+        // Clear localStorage on error if window is available
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("loanInfoFormData")
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+  }
+
+  fetchLoanData()
+}, [formData?._id, toast])
   return (
     <LoanInfoContext.Provider
       value={{
@@ -161,7 +241,7 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
         updateMultipleFields,
         resetForm,
         saveToServer,
-       isLoading
+        isLoading
       }}
     >
       {children}

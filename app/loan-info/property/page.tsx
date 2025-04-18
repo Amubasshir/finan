@@ -116,60 +116,62 @@ export default function PropertyInfo() {
   // Validate form and save data
   // Add this after the lvrColor constant
   const isFormValid = Boolean(
-    formState.propertyType && 
+    formState.propertyType &&
     formState.propertyValue > 0
   )
-  
+
   // Update the handleSubmit function
   const handleSubmit = async () => {
     const newErrors: Record<string, string> = {}
-  
+
     // Validate required fields
     if (!formState.propertyType) {
       newErrors.propertyType = "Property type is required"
     }
-  
+
     if (formState.propertyValue <= 0) {
       newErrors.propertyValue = "Property value must be greater than 0"
     }
-  
+
     // Set errors or proceed
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
-  
+
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields correctly.",
         variant: "destructive",
       })
-  
+
       return
     }
-  
+
     try {
       // Save all form data to context
       updateMultipleFields(formState)
-      
+
       // Save to server before navigating
-      await saveToServer()
-  
-      toast({
-        title: "Success",
-        description: "Property information saved successfully.",
-      })
-  
-      // Navigate to next step
-      router.push(`/loan-info/personal`)
+      const result:any = await saveToServer()
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Personal information saved successfully.",
+          variant: "default",
+        })
+        router.push(`/loan-info/personal`)
+      } else {
+        toast({
+          title: "Error", 
+          description: result.errorMessage || "Failed to save personal information. Please try again.",
+          variant: "destructive",
+        })
+      }
     } catch (err) {
       console.error("Failed to save property information:", err)
-      toast({
-        title: "Error",
-        description: "Failed to save property information. Please try again.",
-        variant: "destructive",
-      })
+
     }
   }
-  
+
   // Update the Save button in the return statement
 
 
@@ -471,7 +473,7 @@ export default function PropertyInfo() {
         <Button
           variant="outline"
           onClick={() => router.push(`/loan-info`)}
-          disabled={isLoading  || !isFormValid}
+          disabled={isLoading || !isFormValid}
           className="flex items-center"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -480,7 +482,7 @@ export default function PropertyInfo() {
         <Button
           onClick={handleSubmit}
           className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 flex items-center"
-          disabled={isLoading  || !isFormValid}
+          disabled={isLoading || !isFormValid}
         >
           {isLoading ? (
             <>
