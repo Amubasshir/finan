@@ -17,7 +17,8 @@ export default function LoanInfoDefaultPage() {
         
         if (response.data.success && response.data.loanInfo._id) {
           // Redirect to the property page with the new ID
-          router.push(`/loan-info/${response.data.loanInfo._id}/property`)
+          localStorage.setItem("loanInfoFormData", JSON.stringify({_id: response?.data?.loanInfo?._id}))
+          router.push(`/loan-info/property`)
         } else {
           // If API fails, just redirect to a new loan
           router.push("/loan-info/property")
