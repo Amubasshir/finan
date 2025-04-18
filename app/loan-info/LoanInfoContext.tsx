@@ -1,7 +1,8 @@
 "use client"
 
+import api from "@/lib/axios"
 import { createContext, useContext, useState, type ReactNode } from "react"
-
+import { useToast } from "@/components/ui/use-toast"
 const defaultFormData: any = {
   propertyType: "",
   propertyValue: 500000,
@@ -73,13 +74,14 @@ interface LoanInfoContextType {
   updateMultipleFields: (fields: Partial<any>) => void
   resetForm: () => void
   saveToServer: () => Promise<{ success: boolean; error?: string }>
-  isSaving: boolean
+  isLoading: boolean
 }
 
 const LoanInfoContext = createContext<LoanInfoContextType | undefined>(undefined)
 
 // Create the provider component
 export function LoanInfoProvider({ children }: { children: ReactNode }) {
+  const { toast } = useToast()
   const [formData, setFormData] = useState<any>(() => {
     if (typeof window !== "undefined") {
       const savedData = localStorage.getItem("loanInfoFormData")
@@ -93,10 +95,9 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
     }
     return defaultFormData
   })
-  const [isSaving, setIsSaving] = useState(false)
-
+  const [isLoading, setIsLoading] = useState(false)
   const updateFormData = (field: string, value: any) => {
-    setFormData((prev:any) => {
+    setFormData((prev: any) => {
       const newData = { ...prev, [field]: value }
       if (typeof window !== "undefined") {
         localStorage.setItem("loanInfoFormData", JSON.stringify(newData))
@@ -106,7 +107,7 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
   }
 
   const updateMultipleFields = (fields: Partial<any>) => {
-    setFormData((prev:any) => {
+    setFormData((prev: any) => {
       const newData = { ...prev, ...fields }
       if (typeof window !== "undefined") {
         localStorage.setItem("loanInfoFormData", JSON.stringify(newData))
@@ -123,49 +124,44 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
   }
 
   // New function to save form data to API
-  const saveToServer = async (): Promise<{ success: boolean; error?: string }> => {
-    setIsSaving(true)
+  const saveToServer = async (): Promise<{ success: boolean; errorMessage?: string,successMessage?:string }> => {
+    setIsLoading(true)
     try {
-      const response = await fetch("/api/loan-info", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-      
+      const loanId = formData?._id
+      delete formData._id
+      const response:any = loanId? await api.put(`/loan-info/${loanId}`, formData):await api.post(`/loan-info`, formData);
+      setFormData(response?.data?.loanInfo)
       // Optionally update localStorage with the response data if needed
       if (typeof window !== "undefined") {
         localStorage.setItem("loanInfoFormData", JSON.stringify(formData))
       }
-
-      return { success: true }
-    } catch (error) {
+      toast({
+        title: "Success",
+        description: "Property information saved successfully.",
+        variant: "default",
+      })
+      
+      return { success: true,successMessage:response?.data?.message||"Data saved successfully" }
+    } catch (error:any) {
+  
       console.error("Failed to save form data:", error)
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : "Failed to save data"
+      return {
+        success: false,
+        errorMessage:error?.response?.data?.message || error instanceof Error ? error.message : "Failed to save data"
       }
     } finally {
-      setIsSaving(false)
+      setIsLoading(false)
     }
   }
-
   return (
-    <LoanInfoContext.Provider 
-      value={{ 
-        formData, 
-        updateFormData, 
-        updateMultipleFields, 
+    <LoanInfoContext.Provider
+      value={{
+        formData,
+        updateFormData,
+        updateMultipleFields,
         resetForm,
-         saveToServer,
-        isSaving 
+        saveToServer,
+       isLoading
       }}
     >
       {children}

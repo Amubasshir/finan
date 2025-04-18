@@ -12,12 +12,14 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { HelpCircle, Home, MapPin, DollarSign, Building, AlertCircle, Percent } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
+import { HelpCircle, Home, MapPin, DollarSign, Building, AlertCircle, Percent, Save, ArrowLeft, Loader2 } from "lucide-react"
 import { useLoanInfo } from "../LoanInfoContext"
 
 export default function PropertyInfo() {
   const router = useRouter()
-  const { formData, updateMultipleFields } = useLoanInfo()
+  const { toast } = useToast()
+  const { formData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
 
   const [formState, setFormState] = useState({
     propertyType: formData.propertyType || "",
@@ -33,6 +35,7 @@ export default function PropertyInfo() {
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+
 
   // Update form state when context data changes
   useEffect(() => {
@@ -111,30 +114,64 @@ export default function PropertyInfo() {
   const lvrColor = lvr > 80 ? "text-red-600" : lvr > 70 ? "text-yellow-600" : "text-green-600"
 
   // Validate form and save data
-  const handleSubmit = () => {
+  // Add this after the lvrColor constant
+  const isFormValid = Boolean(
+    formState.propertyType && 
+    formState.propertyValue > 0
+  )
+  
+  // Update the handleSubmit function
+  const handleSubmit = async () => {
     const newErrors: Record<string, string> = {}
-
+  
     // Validate required fields
     if (!formState.propertyType) {
       newErrors.propertyType = "Property type is required"
     }
-
+  
     if (formState.propertyValue <= 0) {
       newErrors.propertyValue = "Property value must be greater than 0"
     }
-
+  
     // Set errors or proceed
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
+  
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields correctly.",
+        variant: "destructive",
+      })
+  
       return
     }
-
-    // Save all form data to context
-    updateMultipleFields(formState)
-
-    // Navigate to next step
-    router.push("/loan-info/personal")
+  
+    try {
+      // Save all form data to context
+      updateMultipleFields(formState)
+      
+      // Save to server before navigating
+      await saveToServer()
+  
+      toast({
+        title: "Success",
+        description: "Property information saved successfully.",
+      })
+  
+      // Navigate to next step
+      router.push(`/loan-info/personal`)
+    } catch (err) {
+      console.error("Failed to save property information:", err)
+      toast({
+        title: "Error",
+        description: "Failed to save property information. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
+  
+  // Update the Save button in the return statement
+
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="space-y-6">
@@ -429,37 +466,33 @@ export default function PropertyInfo() {
         </CardContent>
       </Card>
 
-      <motion.div
-        className="bg-blue-50 p-4 rounded-lg border border-blue-100"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3 }}
-      >
-        <div className="flex items-start">
-          <div className="flex-shrink-0 pt-0.5">
-            <svg className="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <p className="text-sm text-blue-700">
-              <span className="font-medium">Refinancing Tip:</span> A lower LVR (below 80%) can help you avoid Lenders
-              Mortgage Insurance and qualify for better interest rates when refinancing your home loan.
-            </p>
-          </div>
-        </div>
-      </motion.div>
 
-      <div className="flex justify-end mt-6">
+      <div className="flex justify-between mt-6">
+        <Button
+          variant="outline"
+          onClick={() => router.push(`/loan-info`)}
+          disabled={isLoading  || !isFormValid}
+          className="flex items-center"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
         <Button
           onClick={handleSubmit}
-          className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+          className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 flex items-center"
+          disabled={isLoading  || !isFormValid}
         >
-          Save and Continue
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Save and Continue
+            </>
+          )}
         </Button>
       </div>
 

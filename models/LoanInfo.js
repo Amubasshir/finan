@@ -1,20 +1,7 @@
 const mongoose = require('mongoose');
 
-const LoanInfoSchema = new mongoose.Schema({
-  // User reference - needed for API authentication
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  
-  // Status field for tracking application progress
-  status: {
-    type: String,
-    enum: ['draft', 'submitted', 'in_review', 'approved', 'rejected'],
-    default: 'draft'
-  },
-  
+// Check if the model is already defined to prevent the "Cannot overwrite model" error
+const LoanInfo = mongoose.models.LoanInfo || mongoose.model('LoanInfo', new mongoose.Schema({
   // Property Information
   propertyType: {
     type: String,
@@ -22,7 +9,7 @@ const LoanInfoSchema = new mongoose.Schema({
   },
   propertyValue: {
     type: Number,
-    default: 0
+    default: 500000
   },
   propertyAddress: {
     type: String,
@@ -38,15 +25,15 @@ const LoanInfoSchema = new mongoose.Schema({
   },
   bedrooms: {
     type: Number,
-    default: 0
+    default: 3
   },
   bathrooms: {
     type: Number,
-    default: 0
+    default: 2
   },
   currentMortgage: {
     type: Number,
-    default: 0
+    default: 400000
   },
   currentLender: {
     type: String,
@@ -102,7 +89,7 @@ const LoanInfoSchema = new mongoose.Schema({
   },
   annualIncome: {
     type: Number,
-    default: 0
+    default: 80000
   },
   additionalIncome: {
     type: Number,
@@ -112,6 +99,7 @@ const LoanInfoSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Self-employed specific fields
   businessType: {
     type: String,
     default: ''
@@ -128,6 +116,7 @@ const LoanInfoSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Partner details
   hasPartner: {
     type: Boolean,
     default: false
@@ -269,9 +258,21 @@ const LoanInfoSchema = new mongoose.Schema({
   parentGuarantee: {
     type: Boolean,
     default: false
+  },
+
+  // Status and user reference
+  status: {
+    type: String,
+    enum: ['draft', 'submitted', 'approved', 'rejected'],
+    default: 'draft'
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   }
 }, {
   timestamps: true
-});
+}));
 
-module.exports = mongoose.model('LoanInfo', LoanInfoSchema);
+module.exports = LoanInfo;
