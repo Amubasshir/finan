@@ -13,7 +13,8 @@ import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { HelpCircle, Home, MapPin, DollarSign, Building, AlertCircle, Percent } from "lucide-react"
-import { useLoanInfo } from "../../LoanInfoContext"
+import { useLoanInfo } from "../LoanInfoContext"
+
 export default function PropertyInfo() {
   const router = useRouter()
   const { formData, updateMultipleFields } = useLoanInfo()

@@ -1,17 +1,8 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { useParams } from "next/navigation"
-import { loanInfoAPI } from "@/lib/api"
-import { LoanApplicationInterface } from "@/lib/types/loanAplication"
+import { createContext, useContext, useState, type ReactNode } from "react"
 
-// Define the shape of our form data
-// We can reuse the interface from lib/types/loanInfo.ts
-// import { LoanInfoData } from "@/lib/types/loanInfo"
-
-// Update the defaultFormData to include the new fields
-const defaultFormData: LoanApplicationInterface = {
-  // Property Information
+const defaultFormData: any = {
   propertyType: "",
   propertyValue: 500000,
   propertyAddress: "",
@@ -22,16 +13,12 @@ const defaultFormData: LoanApplicationInterface = {
   currentMortgage: 400000,
   currentLender: "",
   currentInterestRate: 0,
-
-  // Personal Information
   fullName: "",
   email: "",
   phone: "",
   dateOfBirth: "",
   maritalStatus: "",
   dependents: 0,
-
-  // Employment Information
   employmentStatus: "",
   employerName: "",
   jobTitle: "",
@@ -39,12 +26,10 @@ const defaultFormData: LoanApplicationInterface = {
   annualIncome: 80000,
   additionalIncome: 0,
   isSelfEmployed: false,
-  // Self-employed specific fields
   businessType: "",
   abnAcn: "",
   businessIndustry: "",
   annualBusinessRevenue: 0,
-  // Partner details
   hasPartner: false,
   partnerEmploymentStatus: "",
   partnerEmployerName: "",
@@ -56,8 +41,6 @@ const defaultFormData: LoanApplicationInterface = {
   partnerAbnAcn: "",
   partnerBusinessIndustry: "",
   partnerAnnualBusinessRevenue: 0,
-
-  // Financial Information
   creditScore: "",
   monthlyExpenses: 2000,
   existingDebts: 0,
@@ -65,16 +48,12 @@ const defaultFormData: LoanApplicationInterface = {
   savingsBalance: 20000,
   investments: 0,
   otherAssets: 0,
-
-  // Loan Requirements
   loanAmount: 400000,
   loanPurpose: "",
   loanTerm: 30,
   interestRatePreference: "",
   loanType: "",
   fixedRateTerm: 3,
-
-  // Additional Features
   offsetAccount: false,
   redrawFacility: false,
   extraRepayments: false,
@@ -89,150 +68,93 @@ const defaultFormData: LoanApplicationInterface = {
 
 // Create the context
 interface LoanInfoContextType {
-  formData: LoanApplicationInterface
+  formData: any
   updateFormData: (field: string, value: any) => void
-  updateMultipleFields: (fields: Partial<LoanApplicationInterface>) => void
+  updateMultipleFields: (fields: Partial<any>) => void
   resetForm: () => void
-  saveToServer: () => Promise<void>
-  isLoading: boolean
-  error: string | null
-  loanInfoId: string | null
+  saveToServer: () => Promise<{ success: boolean; error?: string }>
+  isSaving: boolean
 }
 
 const LoanInfoContext = createContext<LoanInfoContextType | undefined>(undefined)
 
 // Create the provider component
 export function LoanInfoProvider({ children }: { children: ReactNode }) {
-  const params = useParams()
-  const loanInfoId = params?.id as string || null
-  
-  // State for form data and API interaction
-  const [formData, setFormData] = useState<LoanApplicationInterface>(defaultFormData)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isMounted, setIsMounted] = useState(false)
-
-  // Load data from server or localStorage on mount
-  useEffect(() => {
-    const loadData = async () => {
-      setIsMounted(true)
-      
-      if (loanInfoId) {
-        // If we have an ID, try to load from server
+  const [formData, setFormData] = useState<any>(() => {
+    if (typeof window !== "undefined") {
+      const savedData = localStorage.getItem("loanInfoFormData")
+      if (savedData) {
         try {
-          setIsLoading(true)
-          setError(null)
-          const response = await loanInfoAPI.getLoanInfoById(loanInfoId)
-          if (response.data.success) {
-            setFormData(response.data.loanInfo)
-            // Also update localStorage for backup
-            if (typeof window !== "undefined") {
-              localStorage.setItem("loanInfoFormData", JSON.stringify(response.data.loanInfo))
-            }
-          }
-        } catch (err: any) {
-          console.error("Failed to load loan info:", err)
-          setError(err.message || "Failed to load loan information")
-          
-          // Fall back to localStorage if available
-          if (typeof window !== "undefined") {
-            const savedData = localStorage.getItem("loanInfoFormData")
-            if (savedData) {
-              try {
-                setFormData(JSON.parse(savedData))
-              } catch (parseErr) {
-                console.error("Failed to parse saved form data:", parseErr)
-              }
-            }
-          }
-        } finally {
-          setIsLoading(false)
-        }
-      } else {
-        // No ID, just load from localStorage
-        if (typeof window !== "undefined") {
-          const savedData = localStorage.getItem("loanInfoFormData")
-          if (savedData) {
-            try {
-              setFormData(JSON.parse(savedData))
-            } catch (error) {
-              console.error("Failed to parse saved form data:", error)
-            }
-          }
+          return JSON.parse(savedData)
+        } catch (error) {
+          console.error("Failed to parse saved form data:", error)
         }
       }
     }
+    return defaultFormData
+  })
+  const [isSaving, setIsSaving] = useState(false)
 
-    loadData()
-  }, [loanInfoId])
-
-  // Function to update a single field
   const updateFormData = (field: string, value: any) => {
-    setFormData((prev) => {
+    setFormData((prev:any) => {
       const newData = { ...prev, [field]: value }
-
-      // Save to localStorage
       if (typeof window !== "undefined") {
         localStorage.setItem("loanInfoFormData", JSON.stringify(newData))
       }
-
       return newData
     })
   }
 
-  // Function to update multiple fields at once
-  const updateMultipleFields = (fields: Partial<LoanApplicationInterface>) => {
-    setFormData((prev) => {
+  const updateMultipleFields = (fields: Partial<any>) => {
+    setFormData((prev:any) => {
       const newData = { ...prev, ...fields }
-
-      // Save to localStorage
       if (typeof window !== "undefined") {
         localStorage.setItem("loanInfoFormData", JSON.stringify(newData))
       }
-
       return newData
     })
   }
 
-  // Function to reset the form
   const resetForm = () => {
     setFormData(defaultFormData)
     if (typeof window !== "undefined") {
       localStorage.removeItem("loanInfoFormData")
     }
   }
-  
-  // Function to save data to server
-  const saveToServer = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      
-      if (loanInfoId) {
-        // Update existing loan info
-        const response = await loanInfoAPI.updateLoanInfo(loanInfoId, formData)
-        if (!response.data.success) {
-          throw new Error(response.data.message || "Failed to update loan information")
-        }
-      } else {
-        // Create new loan info
-        const response = await loanInfoAPI.createLoanInfo(formData)
-        if (!response.data.success) {
-          throw new Error(response.data.message || "Failed to create loan information")
-        }
-      }
-    } catch (err: any) {
-      console.error("Failed to save loan info:", err)
-      setError(err.message || "Failed to save loan information")
-      throw err
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
-  // Only provide the context if we're mounted (to avoid hydration issues)
-  if (!isMounted) {
-    return <>{children}</>
+  // New function to save form data to API
+  const saveToServer = async (): Promise<{ success: boolean; error?: string }> => {
+    setIsSaving(true)
+    try {
+      const response = await fetch("/api/loan-info", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      
+      // Optionally update localStorage with the response data if needed
+      if (typeof window !== "undefined") {
+        localStorage.setItem("loanInfoFormData", JSON.stringify(formData))
+      }
+
+      return { success: true }
+    } catch (error) {
+      console.error("Failed to save form data:", error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to save data"
+      }
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -241,11 +163,9 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
         formData, 
         updateFormData, 
         updateMultipleFields, 
-        resetForm, 
-        saveToServer,
-        isLoading,
-        error,
-        loanInfoId
+        resetForm,
+         saveToServer,
+        isSaving 
       }}
     >
       {children}
@@ -253,7 +173,7 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
   )
 }
 
-// Custom hook to use the loan info context
+// Custom hook to use the context
 export function useLoanInfo() {
   const context = useContext(LoanInfoContext)
   if (context === undefined) {

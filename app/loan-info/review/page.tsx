@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, AlertCircle, ChevronRight } from "lucide-react"
-import { useLoanInfo } from "../../LoanInfoContext"
+import { useLoanInfo } from "../LoanInfoContext"
 import confetti from "canvas-confetti"
 
 export default function Review() {

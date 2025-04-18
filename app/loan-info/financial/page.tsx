@@ -11,7 +11,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { HelpCircle, DollarSign, CreditCard, Landmark, AlertTriangle } from "lucide-react"
-import { useLoanInfo } from "../../LoanInfoContext"
+import { useLoanInfo } from "../LoanInfoContext"
+
 export default function FinancialInfo() {
   const { formData, updateFormData } = useLoanInfo()
   const [formState, setFormState] = useState({

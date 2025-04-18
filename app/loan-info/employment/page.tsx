@@ -11,12 +11,12 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { useLoanInfo } from "../../LoanInfoContext"
-import { Plus, X } from "lucide-react"
+import { useLoanInfo } from "../LoanInfoContext"
+import { Plus, X, Save } from "lucide-react"
 
 export default function EmploymentInformation() {
   const router = useRouter()
-  const { formData, updateMultipleFields } = useLoanInfo()
+  const { formData, updateMultipleFields, saveToServer, isLoading, error, loanId } = useLoanInfo()
 
   const [employmentData, setEmploymentData] = useState({
     employmentStatus: formData.employmentStatus || "",
@@ -53,6 +53,7 @@ export default function EmploymentInformation() {
   const [showPartnerSelfEmployedDetails, setShowPartnerSelfEmployedDetails] = useState(
     employmentData.partnerIsSelfEmployed || employmentData.partnerEmploymentStatus === "selfEmployed",
   )
+  const [isSaving, setIsSaving] = useState(false)
 
   // Sync isSelfEmployed with employmentStatus
   useEffect(() => {
@@ -200,16 +201,28 @@ export default function EmploymentInformation() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) {
       return
     }
 
-    // Save all form data to context
-    updateMultipleFields(employmentData)
-
-    // Navigate to next step
-    router.push("/loan-info/financial")
+    try {
+      setIsSaving(true)
+      
+      // Save all form data to context
+      updateMultipleFields(employmentData)
+      
+      // Save to server before navigating
+      await saveToServer()
+      
+      // Navigate to next step
+      router.push(`/loan-info/${loanId || 'new'}/financial`)
+    } catch (err) {
+      console.error("Failed to save employment information:", err)
+      // Display error to user if needed
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Determine if we should show self-employed fields based on either the toggle or the employment status
@@ -597,14 +610,38 @@ export default function EmploymentInformation() {
         )}
       </div>
 
-      <div className="flex justify-end mt-6">
+      <div className="flex justify-between mt-6">
+        <Button 
+          variant="outline" 
+          onClick={() => router.push(`/loan-info/${loanId || 'new'}/personal`)}
+          disabled={isSaving || isLoading}
+        >
+          Back
+        </Button>
         <Button
           onClick={handleSubmit}
           className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+          disabled={isSaving || isLoading}
         >
-          Save and Continue
+          {isSaving || isLoading ? (
+            <>
+              <span className="animate-spin mr-2">⟳</span>
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Save and Continue
+            </>
+          )}
         </Button>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-md">
+          {error}
+        </div>
+      )}
 
       <div className="text-sm text-gray-500 italic">
         <span className="text-red-500">*</span> Required fields must be completed before proceeding to the next step.

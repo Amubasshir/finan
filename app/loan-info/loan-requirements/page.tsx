@@ -8,7 +8,8 @@ import { Slider } from "@/components/ui/slider"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { HelpCircle, DollarSign, Clock, Percent } from "lucide-react"
-import { useLoanInfo } from "../../LoanInfoContext"
+import { useLoanInfo } from "../LoanInfoContext"
+
 export default function LoanRequirements() {
   const { formData, updateFormData } = useLoanInfo()
   const [formState, setFormState] = useState({

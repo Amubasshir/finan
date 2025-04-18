@@ -1,16 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { HelpCircle, Wallet, Repeat, Clock, Percent, CreditCard, Home } from "lucide-react"
-import { useLoanInfo } from "../../LoanInfoContext"
+import { HelpCircle, Wallet, Repeat, Clock, Percent, CreditCard, Home, ArrowLeft, ArrowRight } from "lucide-react"
+import { useLoanInfo } from "../LoanInfoContext"
+import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 
 export default function AdditionalFeatures() {
-  const { formData, updateFormData } = useLoanInfo()
+  const { formData, updateFormData, saveToServer, isLoading, error, loanId } = useLoanInfo()
+  const router = useRouter()
   const [formState, setFormState] = useState({
     offsetAccount: formData.offsetAccount || false,
     redrawFacility: formData.redrawFacility || false,
@@ -23,12 +26,49 @@ export default function AdditionalFeatures() {
     portability: formData.portability || false,
     parentGuarantee: formData.parentGuarantee || false,
   })
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Update local state when formData changes (e.g., when loaded from API)
+  useEffect(() => {
+    setFormState({
+      offsetAccount: formData.offsetAccount || false,
+      redrawFacility: formData.redrawFacility || false,
+      extraRepayments: formData.extraRepayments || false,
+      interestOnly: formData.interestOnly || false,
+      fixedRate: formData.fixedRate || false,
+      splitLoan: formData.splitLoan || false,
+      packageDiscount: formData.packageDiscount || false,
+      noFees: formData.noFees || false,
+      portability: formData.portability || false,
+      parentGuarantee: formData.parentGuarantee || false,
+    })
+  }, [formData])
 
   const handleCheckboxChange = (name: string) => (checked: boolean) => {
     setFormState((prev) => ({ ...prev, [name]: checked }))
     updateFormData(name, checked)
   }
 
+  const handleSave = async () => {
+    try {
+      setIsSaving(true)
+      // Update status to submitted when saving the final step
+      updateFormData("status", "submitted")
+      await saveToServer()
+      // Navigate to the summary page
+      router.push(`/loan-info/${loanId || 'new'}/summary`)
+    } catch (err) {
+      console.error("Failed to save:", err)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleBack = () => {
+    router.push(`/loan-info/${loanId || 'new'}/loan-requirements`)
+  }
+
+  // Keep your existing features array
   const features = [
     {
       id: "offsetAccount",
@@ -158,6 +198,42 @@ export default function AdditionalFeatures() {
           </motion.div>
         </CardContent>
       </Card>
+
+      {/* Navigation buttons */}
+      <div className="flex justify-between items-center mt-6">
+        <Button 
+          variant="outline" 
+          onClick={handleBack}
+          className="flex items-center"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+        <Button 
+          onClick={handleSave} 
+          disabled={isLoading || isSaving}
+          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center"
+        >
+          {(isLoading || isSaving) ? (
+            <>
+              <span className="animate-spin mr-2">⟳</span>
+              Saving...
+            </>
+          ) : (
+            <>
+              Submit Application
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </>
+          )}
+        </Button>
+      </div>
+      
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-md">
+          {error}
+        </div>
+      )}
 
       <motion.div
         className="bg-blue-50 p-4 rounded-lg border border-blue-100"
