@@ -1,7 +1,7 @@
-// Update import statements
+// Fix the import statement for LoanInfo model
 import { NextResponse } from 'next/server';
-import connectDB from '@/lib/db';  // Remove curly braces
-import LoanInfo from '@/models/LoanInfo';
+import connectDB from '@/lib/db';
+import LoanInfo from '@/models/LoanInfo'; // This should match the actual filename case
 import { verifyToken } from '@/lib/auth';
 
 // Get a specific loan info
@@ -17,7 +17,8 @@ export async function GET(request, { params }) {
       );
     }
     
-    const { id } = params;
+    // Safely extract id from params
+    const id = params?.id;
     
     const loanInfo = await LoanInfo.findOne({ _id: id, userId });
     
@@ -53,24 +54,107 @@ export async function PUT(request, { params }) {
       );
     }
     
-    const { id } = params;
+    const { id } = params || {};
     const updateData = await request.json();
     
-    const updatedLoanInfo = await LoanInfo.findOneAndUpdate(
-      { _id: id, userId },
-      { $set: updateData },
-      { new: true, runValidators: true }
-    );
+    // Process all sections with proper type conversion
+    const processedData = {};
     
-    if (!updatedLoanInfo) {
+    // Process each section if it exists in the update data
+    const sections = ['personal', 'employment', 'financial', 'property', 'loanRequirements', 'additionalFeatures'];
+    
+    sections.forEach(section => {
+      if (updateData[section]) {
+        processedData[section] = { ...updateData[section] };
+        
+        // Convert numeric fields in financial section
+        if (section === 'financial') {
+          const numericFields = ['monthlyExpenses', 'existingDebts', 'savingsBalance', 
+                                'investments', 'otherAssets', 'currentMortgage', 
+                                'currentInterestRate', 'currentLoanTerm', 
+                                'remainingLoanTerm', 'exitFees'];
+          
+          numericFields.forEach(field => {
+            if (processedData[section][field] !== undefined) {
+              processedData[section][field] = Number(processedData[section][field]);
+            }
+          });
+        }
+        
+        // Convert numeric fields in property section
+        if (section === 'property') {
+          const numericFields = ['propertyValue', 'propertyAge', 'bedrooms', 
+                                'bathrooms', 'currentMortgage', 'currentInterestRate'];
+          
+          numericFields.forEach(field => {
+            if (processedData[section][field] !== undefined) {
+              processedData[section][field] = Number(processedData[section][field]);
+            }
+          });
+        }
+        
+        // Convert numeric fields in employment section
+        if (section === 'employment') {
+          const numericFields = ['yearsInCurrentJob', 'annualIncome', 'additionalIncome', 
+                                'annualBusinessRevenue', 'partnerYearsInCurrentJob', 
+                                'partnerAnnualIncome', 'partnerAnnualBusinessRevenue'];
+          
+          numericFields.forEach(field => {
+            if (processedData[section][field] !== undefined) {
+              processedData[section][field] = Number(processedData[section][field]);
+            }
+          });
+        }
+        
+        // Convert numeric fields in loanRequirements section
+        if (section === 'loanRequirements') {
+          const numericFields = ['loanAmount', 'loanTerm', 'fixedRateTerm'];
+          
+          numericFields.forEach(field => {
+            if (processedData[section][field] !== undefined) {
+              processedData[section][field] = Number(processedData[section][field]);
+            }
+          });
+        }
+        
+        // Convert numeric fields in personal section
+        if (section === 'personal') {
+          if (processedData[section].dependents !== undefined) {
+            processedData[section].dependents = Number(processedData[section].dependents);
+          }
+        }
+      }
+    });
+    
+    // Handle any top-level fields
+    Object.keys(updateData).forEach(key => {
+      if (!sections.includes(key)) {
+        processedData[key] = updateData[key];
+      }
+    });
+
+    // First check if the document exists
+    const existingDoc = await LoanInfo.findOne({ _id: id, userId });
+    if (!existingDoc) {
       return NextResponse.json(
         { success: false, message: 'Loan info not found' },
         { status: 404 }
       );
     }
+
+    console.log('Processed Data:', processedData);
+    // Update the document
+    const updatedLoanInfo = await LoanInfo.findOneAndUpdate(
+      { _id: id, userId },
+      { $set: processedData },
+      { new: true }
+    );
+    
+    // Convert to plain object to ensure all fields are included
+    const plainObject = updatedLoanInfo.toObject();
     
     return NextResponse.json(
-      { success: true, loanInfo: updatedLoanInfo },
+      { success: true, loanInfo: plainObject },
       { status: 200 }
     );
   } catch (error) {
@@ -94,7 +178,8 @@ export async function DELETE(request, { params }) {
       );
     }
     
-    const { id } = params;
+    // Safely extract id from params
+    const id = params?.id;
     
     const deletedLoanInfo = await LoanInfo.findOneAndDelete({ _id: id, userId });
     

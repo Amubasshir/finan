@@ -19,18 +19,18 @@ import { useLoanInfo } from "../LoanInfoContext"
 export default function PropertyInfo() {
   const router = useRouter()
   const { toast } = useToast()
-  const { formData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
+  const { formData, saveToServer, isLoading } = useLoanInfo()
 
   // Initialize formState with proper default values from formData
   const [formState, setFormState] = useState(() => ({
     propertyType: formData?.property?.propertyType || "",
-    propertyValue: formData?.property?.propertyValue || 500000,
+    propertyValue: formData?.property?.propertyValue || 0,
     propertyAddress: formData?.property?.propertyAddress || "",
     propertyUsage: formData?.property?.propertyUsage || "",
     propertyAge: formData?.property?.propertyAge || 0,
-    bedrooms: formData?.property?.bedrooms || 3,
-    bathrooms: formData?.property?.bathrooms || 2,
-    currentMortgage: formData?.property?.currentMortgage || 400000,
+    bedrooms: formData?.property?.bedrooms || 0,
+    bathrooms: formData?.property?.bathrooms || 0,
+    currentMortgage: formData?.property?.currentMortgage || 0,
     currentLender: formData?.property?.currentLender || "",
     currentInterestRate: formData?.property?.currentInterestRate || 0,
   }))
@@ -40,13 +40,13 @@ export default function PropertyInfo() {
     if (formData?.property) {
       setFormState({
         propertyType: formData.property.propertyType || "",
-        propertyValue: formData.property.propertyValue || 500000,
+        propertyValue: formData.property.propertyValue || 0,
         propertyAddress: formData.property.propertyAddress || "",
         propertyUsage: formData.property.propertyUsage || "",
         propertyAge: formData.property.propertyAge || 0,
-        bedrooms: formData.property.bedrooms || 3,
-        bathrooms: formData.property.bathrooms || 2,
-        currentMortgage: formData.property.currentMortgage || 400000,
+        bedrooms: formData.property.bedrooms || 0,
+        bathrooms: formData.property.bathrooms || 0,
+        currentMortgage: formData.property.currentMortgage || 0,
         currentLender: formData.property.currentLender || "",
         currentInterestRate: formData.property.currentInterestRate || 0,
       })
@@ -55,24 +55,6 @@ export default function PropertyInfo() {
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-
-  // Update form state when context data changes
-  useEffect(() => {
-    setFormState({
-      propertyType: formData.propertyType || "",
-      propertyValue: formData.propertyValue || 500000,
-      propertyAddress: formData.propertyAddress || "",
-      propertyUsage: formData.propertyUsage || "",
-      propertyAge: formData.propertyAge || 0,
-      bedrooms: formData.bedrooms || 3,
-      bathrooms: formData.bathrooms || 2,
-      currentMortgage: formData.currentMortgage || 400000,
-      currentLender: formData.currentLender || "",
-      currentInterestRate: formData.currentInterestRate || 0,
-    })
-
-
-  }, [formData])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target

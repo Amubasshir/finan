@@ -13,11 +13,11 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 export default function LoanRequirements() {
-  const { formData, updateFormData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
+  const { formData, updateFormData,saveToServer, isLoading } = useLoanInfo()
 
   // Initialize state with data from context
   const [formState, setFormState] = useState(() => ({
-    loanAmount: formData?.loanRequirements?.loanAmount || 400000,
+    loanAmount: formData?.loanRequirements?.loanAmount || 0,
     loanPurpose: formData?.loanRequirements?.loanPurpose || "",
     loanTerm: formData?.loanRequirements?.loanTerm || 30,
     interestRatePreference: formData?.loanRequirements?.interestRatePreference || "",
@@ -29,7 +29,7 @@ export default function LoanRequirements() {
   useEffect(() => {
     if (formData?.loanRequirements) {
       setFormState({
-        loanAmount: formData.loanRequirements.loanAmount || 400000,
+        loanAmount: formData.loanRequirements.loanAmount || 0,
         loanPurpose: formData.loanRequirements.loanPurpose || "",
         loanTerm: formData.loanRequirements.loanTerm || 30,
         interestRatePreference: formData.loanRequirements.interestRatePreference || "",
@@ -41,14 +41,17 @@ export default function LoanRequirements() {
 
   const router = useRouter()
   const { toast } = useToast()
+  
+  // Fix the handleSelectChange function
   const handleSelectChange = (name: string) => (value: string) => {
     setFormState((prev) => ({ ...prev, [name]: value }))
-    updateFormData(name, value)
+    // Remove the updateFormData call as it's not needed here
   }
 
+  // Fix the handleSliderChange function
   const handleSliderChange = (name: string) => (value: number[]) => {
     setFormState((prev) => ({ ...prev, [name]: value[0] }))
-    updateFormData(name, value[0])
+    // Remove the updateFormData call as it's not needed here
   }
 
   const formatCurrency = (value: number) => {

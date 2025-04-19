@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 
 export default function EmploymentInformation() {
   const router = useRouter()
-  const { formData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
+  const { formData, saveToServer, isLoading } = useLoanInfo()
 
   // Initialize state with data from context
   const [employmentData, setEmploymentData] = useState(() => ({

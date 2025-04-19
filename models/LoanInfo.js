@@ -25,7 +25,7 @@ const LoanInfo = mongoose.models.LoanInfo || mongoose.model('LoanInfo', new mong
     employerName: { type: String, default: '' },
     jobTitle: { type: String, default: '' },
     yearsInCurrentJob: { type: Number, default: 0 },
-    annualIncome: { type: Number, default: 80000 },
+    annualIncome: { type: Number, default: 0 },
     additionalIncome: { type: Number, default: 0 },
     isSelfEmployed: { type: Boolean, default: false },
     businessType: { type: String, default: '' },
@@ -46,32 +46,39 @@ const LoanInfo = mongoose.models.LoanInfo || mongoose.model('LoanInfo', new mong
   },
   financial: {
     creditScore: { type: String, default: '' },
-    monthlyExpenses: { type: Number, default: 2000 },
+    monthlyExpenses: { type: Number, default: 0 },
     existingDebts: { type: Number, default: 0 },
     bankruptcyHistory: { type: String, default: '' },
-    savingsBalance: { type: Number, default: 20000 },
+    savingsBalance: { type: Number, default: 0 },
     investments: { type: Number, default: 0 },
-    otherAssets: { type: Number, default: 0 }
+    otherAssets: { type: Number, default: 0 },
+    currentMortgage: { type: Number, default: 0 },
+    currentLender: { type: String, default: '' },
+    currentInterestRate: { type: Number, default: 0 },
+    currentLoanTerm: { type: Number, default: 0 },
+    remainingLoanTerm: { type: Number, default: 0 },
+    fixedRateExpiry: { type: String, default: '' },
+    exitFees: { type: Number, default: 0 }
   },
   property: {
     propertyType: { type: String, default: '' },
-    propertyValue: { type: Number, default: 500000 },
+    propertyValue: { type: Number, default: 0 },
     propertyAddress: { type: String, default: '' },
     propertyUsage: { type: String, default: '' },
     propertyAge: { type: Number, default: 0 },
-    bedrooms: { type: Number, default: 3 },
-    bathrooms: { type: Number, default: 2 },
-    currentMortgage: { type: Number, default: 400000 },
+    bedrooms: { type: Number, default: 0 },
+    bathrooms: { type: Number, default: 0 },
+    currentMortgage: { type: Number, default: 0 },
     currentLender: { type: String, default: '' },
     currentInterestRate: { type: Number, default: 0 }
   },
   loanRequirements: {
-    loanAmount: { type: Number, default: 400000 },
+    loanAmount: { type: Number, default: 0 },
     loanPurpose: { type: String, default: '' },
-    loanTerm: { type: Number, default: 30 },
+    loanTerm: { type: Number, default: 0 },
     interestRatePreference: { type: String, default: '' },
     loanType: { type: String, default: '' },
-    fixedRateTerm: { type: Number, default: 3 }
+    fixedRateTerm: { type: Number, default: 0 }
   },
   additionalFeatures: {
     offsetAccount: { type: Boolean, default: false },

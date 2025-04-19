@@ -16,17 +16,17 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 export default function FinancialInfo() {
-  const { formData, updateFormData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
+  const { formData, updateFormData,  saveToServer, isLoading } = useLoanInfo()
   const { toast } = useToast()
   const router = useRouter()
 
   // Initialize state with data from context
   const [formState, setFormState] = useState(() => ({
     creditScore: formData?.financial?.creditScore || "",
-    monthlyExpenses: formData?.financial?.monthlyExpenses || 2000,
+    monthlyExpenses: formData?.financial?.monthlyExpenses || 0,
     existingDebts: formData?.financial?.existingDebts || 0,
     bankruptcyHistory: formData?.financial?.bankruptcyHistory || "",
-    savingsBalance: formData?.financial?.savingsBalance || 20000,
+    savingsBalance: formData?.financial?.savingsBalance || 0,
     investments: formData?.financial?.investments || 0,
     otherAssets: formData?.financial?.otherAssets || 0,
     currentMortgage: formData?.financial?.currentMortgage || 0,
@@ -43,10 +43,10 @@ export default function FinancialInfo() {
     if (formData?.financial) {
       setFormState({
         creditScore: formData.financial.creditScore || "",
-        monthlyExpenses: formData.financial.monthlyExpenses || 2000,
+        monthlyExpenses: formData.financial.monthlyExpenses || 0,
         existingDebts: formData.financial.existingDebts || 0,
         bankruptcyHistory: formData.financial.bankruptcyHistory || "",
-        savingsBalance: formData.financial.savingsBalance || 20000,
+        savingsBalance: formData.financial.savingsBalance || 0,
         investments: formData.financial.investments || 0,
         otherAssets: formData.financial.otherAssets || 0,
         currentMortgage: formData.financial.currentMortgage || 0,
@@ -60,21 +60,31 @@ export default function FinancialInfo() {
     }
   }, [formData])
 
+  // Update the handleInputChange function to properly handle numeric inputs
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormState((prev) => ({ ...prev, [name]: value }))
-    updateFormData(name, value)
-  }
+    const { name, value } = e.target;
+    let parsedValue: string | number = value;
+    
+    // Convert numeric inputs to numbers
+    if (e.target.type === "number" || name === "currentMortgage" || 
+        name === "currentInterestRate" || name === "currentLoanTerm" || 
+        name === "remainingLoanTerm" || name === "exitFees") {
+      parsedValue = value === "" ? 0 : Number(value);
+    }
+    
+    setFormState((prev) => ({ ...prev, [name]: parsedValue }));
+  };
+  
+  // Also update the handleSliderChange function to ensure it updates the state correctly
+  const handleSliderChange = (name: string) => (value: number[]) => {
+    setFormState((prev) => ({ ...prev, [name]: value[0] }));
+  };
 
   const handleSelectChange = (name: string) => (value: string) => {
-    setFormState((prev) => ({ ...prev, [name]: value }))
-    updateFormData(name, value)
+    const updatedState = { ...formState, [name]: value };
+    setFormState(updatedState);
   }
 
-  const handleSliderChange = (name: string) => (value: number[]) => {
-    setFormState((prev) => ({ ...prev, [name]: value[0] }))
-    updateFormData(name, value[0])
-  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(value)
@@ -85,9 +95,6 @@ export default function FinancialInfo() {
 
 
     try {
-
-      // Save all form data to context
-      updateMultipleFields(formState)
 
       // Save to server before navigating
       const result:any = await saveToServer({financial:formState})

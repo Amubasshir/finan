@@ -83,7 +83,6 @@ const defaultFormData: any = {
 interface LoanInfoContextType {
   formData: any
   updateFormData: (field: string, value: any) => void
-  updateMultipleFields: (fields: Partial<any>) => void
   resetForm: () => void
   saveToServer: (data: any) => Promise<{ success: boolean; errorMessage?: string; successMessage?: string }>
   isLoading: boolean
@@ -139,18 +138,21 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
               const response = await api.get(`/loan-info/${parsedData._id}`)
               if (response?.data?.loanInfo) {
                 initialData = response.data.loanInfo
-                localStorage.setItem("loanInfoFormData", JSON.stringify({_id: response?.data?.loanInfo?._id}))
+                localStorage.setItem("loanInfoFormData", JSON.stringify({ _id: response?.data?.loanInfo?._id }))
               }
             }
-            
+
             setFormData(initialData)
           } catch (error) {
+
+            localStorage.removeItem("loanInfoFormData")
+            resetForm()
             console.error("Failed to process saved data:", error)
-            toast({
-              title: "Warning",
-              description: "Failed to load saved data. Starting with default values.",
-              variant: "destructive",
-            })
+            // toast({
+            //   title: "Warning",
+            //   description: "Failed to load saved please try again",
+            //   variant: "destructive",
+            // })
             setFormData(defaultFormData)
           }
         } else {
@@ -167,19 +169,27 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
     initializeFormData()
   }, [toast])
 
+  console.log("formData", formData)
+
   const saveToServer = async (data: any): Promise<{ success: boolean; errorMessage?: string; successMessage?: string }> => {
     setIsLoading(true)
     try {
       const dataToSave = { ...formData, ...data }
-      const loanId = dataToSave._id
+      let loanId = dataToSave._id
       delete dataToSave._id
+      try {
+        let loan = localStorage.getItem("loanInfoFormData")
+        loanId = loan ? JSON.parse(loan)?._id || loanId : loanId || ""
+      } catch (error) {
+
+      }
 
       const response: any = loanId
         ? await api.put(`/loan-info/${loanId}`, dataToSave)
         : await api.post(`/loan-info`, dataToSave)
 
       const updatedData = response?.data?.loanInfo
-      
+
       setFormData(updatedData)
       localStorage.setItem("loanInfoFormData", JSON.stringify(updatedData))
 
@@ -203,7 +213,6 @@ export function LoanInfoProvider({ children }: { children: ReactNode }) {
       value={{
         formData,
         updateFormData,
-        updateMultipleFields,
         resetForm,
         saveToServer,
         isLoading

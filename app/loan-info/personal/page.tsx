@@ -17,7 +17,7 @@ import moment from "moment"
 export default function PersonalInformation() {
   const router = useRouter()
   const { toast } = useToast()
-  const { formData, updateMultipleFields, saveToServer, isLoading } = useLoanInfo()
+  const { formData,  saveToServer, isLoading } = useLoanInfo()
 
   // Initialize state with data from context or localStorage
   const [personalData, setPersonalData] = useState(() => ({
