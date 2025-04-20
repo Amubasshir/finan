@@ -528,7 +528,7 @@ export default function DocumentUploadContent() {
   }
 
   const handleContinueToPreApproval = () => {
-    router.push("/pre-approval-status")
+    router.push(`/pre-approval-status/${id}`)
   }
 
   const goToNextDocument = () => {

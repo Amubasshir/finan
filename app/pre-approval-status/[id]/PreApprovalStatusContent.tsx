@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -76,7 +76,7 @@ export default function PreApprovalStatusContent() {
   const [loading, setLoading] = useState(true)
   const [selectedBankId, setSelectedBankId] = useState<string | null>(null)
   const [showAcceptConfirmation, setShowAcceptConfirmation] = useState(false)
-
+const {id}=useParams()
   useEffect(() => {
     const fetchBankData = async () => {
       setLoading(true)
