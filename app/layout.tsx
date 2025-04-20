@@ -1,10 +1,10 @@
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
-import type React from "react"
 import { Providers } from "@/lib/redux/provider"
+import type { Metadata } from "next"
+import type React from "react"
+import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"] })
+// Replace with CSS variable for font-family
+// const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "finan - Business Loan Refinancing",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className="font-sans">
         <div className="min-h-screen flex flex-col">
           <Providers>
             {children}
@@ -25,5 +25,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   )
 }
-
-
