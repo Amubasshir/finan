@@ -137,10 +137,7 @@ export default function DocumentUploadContent() {
       updateProgress(initialDocuments);
     }
   };
-  // Update progress whenever documents change
-  useEffect(() => {
-    updateProgress(documents)
-  }, [documents])
+
   const saveDocuments = async (documentsArr: any[]) => {
     if (documentsArr.length > 0 && id) {
       try {
@@ -418,17 +415,42 @@ export default function DocumentUploadContent() {
     })
   }
 
+  // Update progress calculation to properly handle conditional documents
   const updateProgress = (docs: Document[]) => {
-    const totalRequired = docs.filter((doc) => doc.required).length
-    if (totalRequired === 0) return
+    // Filter documents that should be considered for progress calculation
+    // Only include documents that are applicable based on hasPartner and isBusinessOwner
+    const applicableDocs = docs.filter(doc => {
+      if (!doc.conditionalDisplay) return true;
+      if (doc.conditionalDisplay.field === "hasPartner") return hasPartner === doc.conditionalDisplay.value;
+      if (doc.conditionalDisplay.field === "isBusinessOwner") return isBusinessOwner === doc.conditionalDisplay.value;
+      return true;
+    });
 
-    const completedRequired = docs.filter((doc) => doc.required && doc.uploadedFiles.length > 0).length
-    const newProgress = Math.round((completedRequired / totalRequired) * 100)
-    setUploadProgress(newProgress)
+    // Count required documents from the applicable ones
+    const totalRequired = applicableDocs.filter(doc => doc.required).length;
+    
+    if (totalRequired === 0) return;
 
-    const totalCompleted = docs.filter((doc) => doc.uploadedFiles.length > 0).length
-    setCompletedUploads(totalCompleted)
-  }
+    // Count completed required documents from the applicable ones
+    const completedRequired = applicableDocs.filter(
+      doc => doc.required && doc.uploadedFiles.length > 0
+    ).length;
+    
+    // Calculate progress percentage
+    const newProgress = Math.round((completedRequired / totalRequired) * 100);
+    setUploadProgress(newProgress);
+
+    // Update total completed uploads count
+    const totalCompleted = applicableDocs.filter(doc => doc.uploadedFiles.length > 0).length;
+    setCompletedUploads(totalCompleted);
+  };
+
+  // Make sure to update progress when hasPartner or isBusinessOwner changes
+  useEffect(() => {
+    if (documents.length > 0) {
+      updateProgress(documents);
+    }
+  }, [documents, hasPartner, isBusinessOwner]);
   const handleFileUpload = async (docId: string, file: File, metadata: any) => {
     try {
       const fileRecord: DocumentFile = {
@@ -605,7 +627,7 @@ export default function DocumentUploadContent() {
             </div>
           </div>
 
-          <Progress value={uploadProgress} className="h-4 mb-2" />
+          <Progress value={uploadProgress} className="h-4 mb-2 text-center" />
 
           <div className="flex justify-between text-sm text-blue-700">
             <span>Start</span>
@@ -1218,7 +1240,7 @@ export default function DocumentUploadContent() {
         >
           Back to Application
         </Button>
-        {uploadProgress === 100 && (
+        {uploadProgress >= 70 && (
           <Button onClick={handleContinueToPreApproval} className="bg-green-600 hover:bg-green-700">
             Continue to Pre-Approval
           </Button>
