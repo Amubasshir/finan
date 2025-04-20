@@ -30,11 +30,8 @@ export default function Review() {
             spread: 70,
             origin: { y: 0.6 },
           })
-
-          setTimeout(() => {
-            localStorage.removeItem("loanInfoFormData")
-            router.push("/pre-approval-confirmation")
-          }, 2000)
+          localStorage.removeItem("loanInfoFormData")
+          router.push(`/pre-approval-confirmation/${formData?._id}`)
         }, 1500)
       } else {
         toast({
@@ -99,37 +96,37 @@ export default function Review() {
 
   const sections = [
     {
-      title: "👤 Personal Information",
+      title: "Personal Information",
       icon: "👤",
       data: formData.personal,
       color: "blue",
     },
     {
-      title: "💼 Employment Information",
+      title: "Employment Information",
       icon: "💼",
       data: formData.employment,
       color: "purple",
     },
     {
-      title: "💰 Financial Information",
+      title: "Financial Information",
       icon: "💰",
       data: formData.financial,
       color: "green",
     },
     {
-      title: "🏠 Property Information",
+      title: "Property Information",
       icon: "🏠",
       data: formData.property,
       color: "orange",
     },
     {
-      title: "📝 Loan Requirements",
+      title: "Loan Requirements",
       icon: "📝",
       data: formData.loanRequirements,
       color: "pink",
     },
     {
-      title: "✨ Additional Features",
+      title: "Additional Features",
       icon: "✨",
       data: formData.additionalFeatures,
       color: "teal",

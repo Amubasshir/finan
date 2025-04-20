@@ -6,12 +6,15 @@ import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Upload, File, X, CheckCircle } from "lucide-react"
+import api from "@/lib/axios" // Import axios instance
 
 interface DocumentFile {
   id: string
   name: string
   size: number
   uploadDate: string
+  url?: string
+  cloudinaryId?: string
 }
 
 interface DocumentUploaderProps {
@@ -19,16 +22,18 @@ interface DocumentUploaderProps {
     id: string
     name: string
     description: string
+    category: string
     required: boolean
     multipleAllowed: boolean
     downloadLink?: string
     uploadedFiles: DocumentFile[]
   }
-  onFileUpload: (docId: string, file: File) => void
+  loanInfoId: string
+  onFileUpload: (docId: string, file: File, metadata: any) => Promise<boolean>
   onFileRemove: (docId: string, fileId: string) => void
 }
 
-export function DocumentUploader({ document, onFileUpload, onFileRemove }: DocumentUploaderProps) {
+export function DocumentUploader({ document, loanInfoId, onFileUpload, onFileRemove }: DocumentUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -82,37 +87,63 @@ export function DocumentUploader({ document, onFileUpload, onFileRemove }: Docum
   }
 
   const uploadFile = async (file: File) => {
+    if (!loanInfoId) {
+      setError("Loan application ID is missing")
+      return
+    }
+
     setIsUploading(true)
     setUploadProgress(0)
 
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 95) {
-          clearInterval(interval)
-          return 95
+    try {
+      // Create form data for file upload
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('loanInfoId', loanInfoId)
+      formData.append('documentId', document.id)
+      formData.append('category', document.category)
+
+      // Track upload progress
+      const uploadConfig = {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent: any) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          setUploadProgress(percentCompleted)
         }
-        return prev + 5
-      })
-    }, 100)
-
-    // Simulate upload delay
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    clearInterval(interval)
-    setUploadProgress(100)
-
-    // Call the onFileUpload callback
-    onFileUpload(document.id, file)
-
-    // Reset the state after a short delay
-    setTimeout(() => {
-      setIsUploading(false)
-      setUploadProgress(0)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
       }
-    }, 500)
+
+      // Upload file to server
+      const response = await api.post('/documents/upload', formData, uploadConfig)
+
+      if (response.data.success) {
+        // Call the parent component's onFileUpload with the file and response metadata
+        const metadata = {
+          fileId: response.data.file.id,
+          url: response.data.file.url,
+          cloudinaryId: response.data.file.cloudinaryId,
+          response: response.data
+        }
+        
+        await onFileUpload(document.id, file, metadata)
+        setError(null)
+      } else {
+        throw new Error(response.data.message || 'Upload failed')
+      }
+    } catch (error) {
+      console.error('File upload error:', error)
+      setError(error instanceof Error ? error.message : 'Failed to upload file')
+    } finally {
+      // Reset the state after upload attempt
+      setTimeout(() => {
+        setIsUploading(false)
+        setUploadProgress(0)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ""
+        }
+      }, 500)
+    }
   }
 
   const formatFileSize = (bytes: number) => {
@@ -156,8 +187,8 @@ export function DocumentUploader({ document, onFileUpload, onFileRemove }: Docum
           <div className="flex flex-col items-center">
             <div className="w-12 h-12 border-4 border-t-blue-600 border-blue-200 rounded-full animate-spin mb-4"></div>
             <p className="text-lg font-medium text-blue-700">Uploading...</p>
-            <Progress value={uploadProgress} className="h-2 w-full max-w-xs mx-auto mt-2" />
-            <p className="text-sm text-gray-500 mt-1">{uploadProgress}%</p>
+            <Progress value={uploadProgress} className="h-4 w-full max-w-xs mx-auto mt-2" />
+      
           </div>
         ) : (
           <div className="flex flex-col items-center">
@@ -195,14 +226,26 @@ export function DocumentUploader({ document, onFileUpload, onFileRemove }: Docum
                   </p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                onClick={() => onFileRemove(document.id, file.id)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center space-x-2">
+                {file.url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-500 hover:text-blue-700"
+                    onClick={() => window.open(file.url, '_blank')}
+                  >
+                    View
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => onFileRemove(document.id, file.id)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

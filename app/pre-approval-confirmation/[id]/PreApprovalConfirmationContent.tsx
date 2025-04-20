@@ -1,35 +1,109 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useParams, useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { CheckCircle, Info, ArrowRight, Shield, Percent, DollarSign, Calendar, Clock, Users } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import api from "@/lib/axios"
 
 export default function PreApprovalConfirmationContent() {
   const router = useRouter()
+  const params = useParams()
+  const { toast } = useToast()
+  const id = params?.id as string
+  
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [loanInfo, setLoanInfo] = useState<any>(null)
   const [approvalStats, setApprovalStats] = useState({
-    lenderCount: 19,
-    maxLoanAmount: 450000,
-    bestInterestRate: 4.99,
-    validityDays: 90,
+    lenderCount: 0,
+    maxLoanAmount: 0,
+    bestInterestRate: 0,
+    validityDays: 0,
   })
 
   useEffect(() => {
-    // Simulate API delay
-    const loadData = async () => {
-      setLoading(true)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setLoading(false)
+    const fetchLoanInfo = async () => {
+      if (!id) {
+        setError("Loan application ID is missing.")
+        setLoading(false)
+        return
+      }
+      
+      try {
+        const response = await api.get(`/loan-info/${id}`)
+        if (response.data.success) {
+          const loanInfo = response.data.loanInfo
+          setLoanInfo(loanInfo)
+          
+          // Calculate approval stats based on loan amount and other factors
+          const loanAmount = loanInfo.loanRequirements?.loanAmount || 0
+          
+          setApprovalStats({
+            lenderCount: Math.floor(Math.random() * 5) + 3, // Simulate 3-7 lenders
+            maxLoanAmount: loanAmount,
+            bestInterestRate: parseFloat((Math.random() * (1.5) + 3.5).toFixed(2)), // Random rate between 3.5% and 5%
+            validityDays: 90, // Standard validity period
+          })
+        } else {
+          throw new Error(response.data.message || "Failed to fetch loan information")
+        }
+      } catch (err) {
+        console.error("Fetch loan info error:", err)
+        setError(err instanceof Error ? err.message : "An unknown error occurred")
+        toast({
+          title: "Error fetching loan information",
+          description: err instanceof Error ? err.message : "Could not load loan data.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
     }
 
-    loadData()
-  }, [])
+    fetchLoanInfo()
+  }, [id, toast])
 
-  const handleContinueApplication = () => {
-    router.push("/document-upload")
+  const handleContinueApplication = async () => {
+    if (!id) return
+    
+    setSubmitting(true)
+    try {
+      // Update loan status to indicate pre-approval confirmation
+      const response = await api.put(`/loan-info/${id}`, { 
+        status: 'pre-approved',
+        preApprovalDate: new Date().toISOString(),
+        preApprovalDetails: {
+          lenderCount: approvalStats.lenderCount,
+          maxLoanAmount: approvalStats.maxLoanAmount,
+          bestInterestRate: approvalStats.bestInterestRate,
+          validityDays: approvalStats.validityDays,
+          expiryDate: new Date(Date.now() + approvalStats.validityDays * 24 * 60 * 60 * 1000).toISOString()
+        }
+      })
+      
+      if (response.data.success) {
+        // Navigate to document upload page
+        router.push(`/document-upload/${id}`)
+      } else {
+        throw new Error(response.data.message || "Failed to update loan status")
+      }
+    } catch (error) {
+      console.error("Error updating loan status:", error)
+      toast({
+        title: "Error updating application",
+        description: error instanceof Error ? error.message : "Could not update application status.",
+        variant: "destructive",
+      })
+      // Continue to document upload even if update fails
+      router.push(`/document-upload/${id}`)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (loading) {
@@ -39,6 +113,22 @@ export default function PreApprovalConfirmationContent() {
           <h1 className="text-3xl font-bold mb-4">Processing Your Information</h1>
           <p className="text-gray-600 mb-8">Please wait while we check your conditional approval status...</p>
           <div className="w-16 h-16 border-4 border-t-blue-600 border-b-blue-600 border-l-transparent border-r-transparent rounded-full animate-spin mx-auto"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
+        <Alert variant="destructive">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+        <div className="mt-4 text-center">
+          <Button variant="outline" onClick={() => router.push('/dashboard')}>
+            Return to Dashboard
+          </Button>
         </div>
       </div>
     )
@@ -214,9 +304,19 @@ export default function PreApprovalConfirmationContent() {
           size="lg"
           className="px-8 py-6 text-lg bg-green-600 hover:bg-green-700 text-white"
           onClick={handleContinueApplication}
+          disabled={submitting}
         >
-          Continue to Document Upload
-          <ArrowRight className="ml-2 h-5 w-5" />
+          {submitting ? (
+            <>
+              <div className="mr-2 h-4 w-4 border-2 border-t-white border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+              Processing...
+            </>
+          ) : (
+            <>
+              Continue to Document Upload
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </>
+          )}
         </Button>
       </div>
     </div>

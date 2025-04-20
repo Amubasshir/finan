@@ -1,6 +1,7 @@
 "use client"
 
-import { DocumentUploadContent } from "./DocumentUploadContent"
+import DocumentUploadContent from "./DocumentUploadContent"
+
 
 export default function DocumentUploadPage() {
   return <DocumentUploadContent />
