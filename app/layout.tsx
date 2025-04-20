@@ -3,8 +3,7 @@ import type { Metadata } from "next"
 import type React from "react"
 import "./globals.css"
 
-// Replace with CSS variable for font-family
-// const inter = Inter({ subsets: ["latin"] })
+
 
 export const metadata: Metadata = {
   title: "finan - Business Loan Refinancing",
