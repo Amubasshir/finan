@@ -516,7 +516,8 @@ export default function DocumentUploadContent() {
       
       // Then delete file from storage if it exists
       if (file && file.cloudinaryId) {
-        await api.delete(`/documents/file/${id}/${docId}/${fileId}/${file.cloudinaryId}`);
+        // Using URL parameters instead of body data
+        await api.delete(`/documents/delete/${id}/${docId}/${fileId}/${file.cloudinaryId}`);
       }
       
       // Finally save updated documents to database

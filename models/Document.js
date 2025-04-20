@@ -9,6 +9,22 @@ const DocumentFileSchema = new mongoose.Schema({
   cloudinaryId: { type: String, required: true }
 });
 
+// New schema for additional documents requested by admin
+const AdditionalDocumentSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  name: { type: String, required: true },
+  description: { type: String, required: true },
+  deadline: { type: String, required: true },
+  status: { 
+    type: String, 
+    enum: ["requested", "uploaded", "verified"],
+    default: "requested"
+  },
+  requestedBy: { type: String, required: true },
+  requestedAt: { type: Date, default: Date.now },
+  uploadedFiles: [DocumentFileSchema]
+});
+
 const DocumentSchema = new mongoose.Schema({
   id: { type: String, required: true },
   name: { type: String, required: true },
@@ -17,7 +33,7 @@ const DocumentSchema = new mongoose.Schema({
   required: { type: Boolean, default: false },
   category: { 
     type: String, 
-    enum: ["identity", "income", "property", "financial", "other", "business", "partner"],
+    enum: ["identity","requested", "income", "property", "financial", "other", "business", "partner"],
     required: true 
   },
   multipleAllowed: { type: Boolean, default: false },
@@ -42,10 +58,12 @@ const DocumentsSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'complete', 'rejected', 'approved', 'review'],
+    enum: ['pending',"requested", 'complete', 'rejected', 'approved', 'review'],
     default: 'pending'
   },
-  documents: [DocumentSchema]
+  documents: [DocumentSchema],
+  // Add additional documents array to the main schema
+  additionalDocuments: [AdditionalDocumentSchema]
 }, {
   timestamps: true
 });
