@@ -1,33 +1,33 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Lock, Eye, EyeOff, CheckCircle } from "lucide-react"
-import { toast, Toaster } from "sonner"
 import api from "@/lib/axios"
+import { CheckCircle, Eye, EyeOff, Lock } from "lucide-react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { toast, Toaster } from "sonner"
 
 export default function ResetPassword({ params }: { params: { token: string } }) {
   const router = useRouter()
   const { token } = params
-  
+
   const [isLoading, setIsLoading] = useState(false)
   const [isTokenValid, setIsTokenValid] = useState(true)
   const [isSuccess, setIsSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState("")
-  
+
   const [formData, setFormData] = useState({
     password: "",
     confirmPassword: "",
   })
 
-  // Validate token on component mount
+
   useEffect(() => {
     const validateToken = async () => {
       try {
@@ -37,7 +37,7 @@ export default function ResetPassword({ params }: { params: { token: string } })
         setIsTokenValid(false)
       }
     }
-    
+
     validateToken()
   }, [token])
 
@@ -52,51 +52,51 @@ export default function ResetPassword({ params }: { params: { token: string } })
       setError("Password is required")
       return false
     }
-    
+
     if (formData.password.length < 8) {
       setError("Password must be at least 8 characters")
       return false
     }
-    
+
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
       return false
     }
-    
+
     return true
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
-    
+
     setIsLoading(true)
     setError("")
-    
+
     try {
       const response = await api.post('/auth/reset-password', {
         token,
         password: formData.password,
       })
-      
+
       setIsSuccess(true)
       toast.success('Password reset successful', {
         description: 'Your password has been reset. You can now log in with your new password.',
       })
-      
+
       // Redirect to login page after 3 seconds
       setTimeout(() => {
         router.push('/login')
       }, 3000)
-      
+
     } catch (error) {
       console.error('Reset password error:', error)
       const errorMessage = error.response?.data?.message || 'Failed to reset password. Please try again.'
       setError(errorMessage)
-      
+
       if (error.response?.status === 400) {
         setIsTokenValid(false)
       }
@@ -147,7 +147,7 @@ export default function ResetPassword({ params }: { params: { token: string } })
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <Toaster position="top-center" richColors />
-        
+
         <div className="container mx-auto px-4 max-w-md">
           <div className="text-center mb-8">
             <Link href="/" className="inline-block">
@@ -198,7 +198,7 @@ export default function ResetPassword({ params }: { params: { token: string } })
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <Toaster position="top-center" richColors />
-        
+
         <div className="container mx-auto px-4 max-w-md">
           <div className="text-center mb-8">
             <Link href="/" className="inline-block">
@@ -238,7 +238,7 @@ export default function ResetPassword({ params }: { params: { token: string } })
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <Toaster position="top-center" richColors />
-      
+
       <div className="container mx-auto px-4 max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
@@ -261,7 +261,7 @@ export default function ResetPassword({ params }: { params: { token: string } })
                 {error}
               </div>
             )}
-            
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="password">New Password</Label>
@@ -286,7 +286,7 @@ export default function ResetPassword({ params }: { params: { token: string } })
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
-                
+
                 {formData.password && (
                   <div className="mt-2">
                     <div className="flex justify-between items-center mb-1">
