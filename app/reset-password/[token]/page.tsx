@@ -87,7 +87,7 @@ export default function ResetPassword({ params }: { params: { token: string } })
         description: 'Your password has been reset. You can now log in with your new password.',
       })
 
-      // Redirect to login page after 3 seconds
+
       setTimeout(() => {
         router.push('/login')
       }, 3000)
