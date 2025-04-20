@@ -187,7 +187,6 @@ export default function DocumentUploadContent() {
         try {
           await api.post(`/documents`, {
             loanInfoId,
-            userId: "unknown", // Ideally, fetch userId from API or context
             documents: initialDocuments,
             status: "pending",
           })
