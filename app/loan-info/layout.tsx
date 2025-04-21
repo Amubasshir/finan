@@ -3,7 +3,7 @@
 import { useState, useEffect, type ReactNode } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { motion } from "framer-motion"
-import { CheckCircle, ChevronRight, HelpCircle, AlertCircle } from "lucide-react"
+import { CheckCircle, ChevronRight, HelpCircle, AlertCircle, LogOut } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -153,9 +153,28 @@ function LoanInfoLayoutContent({ children }: { children: ReactNode }) {
     }
   }
 
+  // Add logout handler
+  const handleLogout = () => {
+    localStorage.clear()
+    router.push('/login') // Redirect to login page after logout
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <div className="container mx-auto px-4 py-8 max-w-5xl">
+        {/* Add logout button */}
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLogout}
+            className="text-gray-600 hover:text-red-600 hover:border-red-200"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
           <h1 className="text-3xl font-bold mb-2 text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Your Home Refinance Information

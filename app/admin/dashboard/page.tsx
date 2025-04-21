@@ -25,6 +25,7 @@ import {
   Loader,
   Plus,
 } from "lucide-react"
+import AdminLayout from "@/components/layouts/AdminLayout"
 
 interface LoanApplication {
   id: string
@@ -319,17 +320,20 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-12">
+     <AdminLayout>
+ <div className="container mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold text-center mb-8">Loading Admin Dashboard</h1>
         <div className="flex justify-center">
           <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
         </div>
       </div>
+
+     </AdminLayout>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <AdminLayout>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-1">Admin Dashboard</h1>
@@ -570,6 +574,6 @@ export default function AdminDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </AdminLayout>
   )
 }

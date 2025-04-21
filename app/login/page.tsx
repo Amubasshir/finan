@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -101,7 +101,12 @@ export default function Login() {
       
       // Redirect to loan information form after a short delay
       setTimeout(() => {
-        router.push("/loan-info/property");
+        if(resultAction?.user?.role === "admin"&&resultAction?.user?.status === "active")
+          return router.push("/admin/dashboard");
+     
+        else if(resultAction?.user?.status === "active")
+          return  router.push("/loan-info/property");
+      
       }, 1000);
       
     } catch (error:any) {
@@ -111,6 +116,20 @@ export default function Login() {
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+   
+    try {
+      const token:any = localStorage.getItem('token');
+
+      if (token) {
+       
+        router.push("/loan-info/property");
+      }
+    } catch (error) {
+      
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
