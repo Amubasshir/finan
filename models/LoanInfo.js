@@ -9,8 +9,31 @@ const LoanInfo = mongoose.models.LoanInfo || mongoose.model('LoanInfo', new mong
   },
   status: {
     type: String,
-    enum: ['draft', 'submitted', 'approved', 'rejected'],
+    enum: [
+      'draft', 
+      'submitted', 
+      'pending_review', 
+      'document_verification', 
+      'lender_submission', 
+      'lender_assessment', 
+      'approved', 
+      'rejected', 
+      'needs_attention'
+    ],
     default: 'draft'
+  },
+  priority: {
+    type: String,
+    enum: ['high', 'medium', 'low'],
+    default: 'medium'
+  },
+  assignedTo: {
+    type: String,
+    default: null
+  },
+  documentsComplete: {
+    type: Boolean,
+    default: false
   },
   personal: {
     fullName: { type: String, default: '' },
@@ -91,7 +114,9 @@ const LoanInfo = mongoose.models.LoanInfo || mongoose.model('LoanInfo', new mong
     noFees: { type: Boolean, default: false },
     portability: { type: Boolean, default: false },
     parentGuarantee: { type: Boolean, default: false }
-  }
+  },
+  dateSubmitted: { type: Date, default: Date.now },
+  lastUpdated: { type: Date, default: Date.now }
 }, {
   timestamps: true
 }));
