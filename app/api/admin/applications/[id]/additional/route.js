@@ -47,7 +47,7 @@ export async function GET(request) {
     }
     
     return NextResponse.json(
-      { success: true, additionalDocuments: documentRecord.additionalDocuments || [] },
+      { success: true, additionalDocuments: documentRecord.additionalDocuments || [],documents:documentRecord.documents,status:documentRecord.status },
       { status: 200 }
     );
   } catch (error) {

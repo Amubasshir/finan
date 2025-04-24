@@ -288,15 +288,15 @@ export default function AdminDashboard() {
   }
 
   const handleViewApplication = (id: string) => {
-    router.push(`/admin/applications/${id}`)
+    router.push(`/admin/dashboard/applications/${id}`)
   }
 
   const handleEditApplication = (id: string) => {
-    router.push(`/admin/applications/${id}/edit`)
+    router.push(`/admin/dashboard/applications/${id}/edit`)
   }
 
   const handleNewApplication = () => {
-    router.push('/admin/applications/new')
+    router.push('/admin/dashboard/applications/new')
   }
 
   const handleTeamView = () => {

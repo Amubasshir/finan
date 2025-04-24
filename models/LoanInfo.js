@@ -115,6 +115,11 @@ const LoanInfo = mongoose.models.LoanInfo || mongoose.model('LoanInfo', new mong
     portability: { type: Boolean, default: false },
     parentGuarantee: { type: Boolean, default: false }
   },
+  timeline:[{
+    status: { type: String, default: '' },
+    date: { type: Date, default: Date.now },
+    description: { type: String, default: '' }
+  }],
   dateSubmitted: { type: Date, default: Date.now },
   lastUpdated: { type: Date, default: Date.now }
 }, {
