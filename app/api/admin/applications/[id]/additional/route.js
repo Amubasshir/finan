@@ -2,25 +2,24 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Document from '@/models/Document';
 import LoanInfo from '@/models/LoanInfo';
-import { verifyToken } from '@/lib/auth';
+import { verifyAdminToken, verifyToken } from '@/lib/auth';
 
 // Get all additional documents for a loan application
-export async function GET(request) {
+export async function GET(request,{ params }) {
   try {
     await connectDB();
     
-    const userId = await verifyToken(request);
+    const userId = await verifyAdminToken(request);
+    
     if (!userId) {
       return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
+        { success: false, message: 'Admin access required' },
+        { status: 403 }
       );
     }
     
-    // Get loanInfoId from query params
-    const url = new URL(request.url);
-    const loanInfoId = url.searchParams.get('loanInfoId');
-    
+
+    const { id: loanInfoId } = params;    
     if (!loanInfoId) {
       return NextResponse.json(
         { success: false, message: 'Loan info ID is required' },
@@ -29,7 +28,7 @@ export async function GET(request) {
     }
     
     // Verify loan info exists and belongs to user
-    const loanInfo = await LoanInfo.findOne({ _id: loanInfoId, userId });
+    const loanInfo = await LoanInfo.findOne({ _id: loanInfoId });
     if (!loanInfo) {
       return NextResponse.json(
         { success: false, message: 'Loan info not found' },
@@ -38,7 +37,7 @@ export async function GET(request) {
     }
     
     // Get document record
-    const documentRecord = await Document.findOne({ loanInfoId, userId });
+    const documentRecord = await Document.findOne({ loanInfoId });
     if (!documentRecord) {
       return NextResponse.json(
         { success: false, message: 'Document record not found' },
@@ -60,15 +59,15 @@ export async function GET(request) {
 }
 
 // Add a new additional document request (admin only)
-export async function POST(request) {
+export async function POST(request, { params }) {
   try {
     await connectDB();
     
     // For admin endpoints, you might want to add admin verification
     // This is a placeholder - implement proper admin authentication
-    const isAdmin = true; // Replace with actual admin verification
+    const userId = await verifyAdminToken(request);
     
-    if (!isAdmin) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, message: 'Admin access required' },
         { status: 403 }
@@ -76,9 +75,10 @@ export async function POST(request) {
     }
     
     const data = await request.json();
-    const { loanInfoId, additionalDocument } = data;
-    
-    if (!loanInfoId || !additionalDocument) {
+
+    const { id: loanInfoId } = params;
+
+    if (!loanInfoId || !data) {
       return NextResponse.json(
         { success: false, message: 'Loan info ID and additional document details are required' },
         { status: 400 }
@@ -96,7 +96,7 @@ export async function POST(request) {
     
     // Add unique ID to the additional document
     const newAdditionalDocument = {
-      ...additionalDocument,
+      ...data,
       id: `additional-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       requestedAt: new Date(),
       status: 'requested',
