@@ -85,6 +85,8 @@ export async function PATCH(
     return NextResponse.json({ success: false, message: 'Failed to update application' }, { status: 500 });
   }
 }
+
+
 export async function DELETE(
   req: Request,
   { params }: { params: { id: string } }
@@ -113,3 +115,4 @@ export async function DELETE(
     return NextResponse.json({ success: false, message: 'Failed to delete application' }, { status: 500 });
   }
 }
+

@@ -55,7 +55,14 @@ import Link from "next/link"
 import { toast } from "@/components/ui/use-toast"
 import AdminLayout from "@/components/layouts/AdminLayout"
 import api from "@/lib/axios"
-
+const LABELS = {
+  selectPriority: "Select priority",
+  highPriority: "High",
+  mediumPriority: "Medium",
+  lowPriority: "Low",
+  updating: "Updating...",
+  updatePriority: "Update Priority",
+};
 // Interfaces
 interface TimelineEvent {
   status: string
@@ -135,7 +142,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   const statusMap: Record<string, { color: string; label: string }> = {
     draft: { color: "bg-gray-200 text-gray-800 capitalize", label: "Draft" },
     submitted: { color: "bg-blue-200 text-blue-800 capitalize", label: "Submitted" },
- 
+
     approved: { color: "bg-green-200 text-green-800 capitalize", label: "Approved" },
     rejected: { color: "bg-red-200 text-red-800 capitalize", label: "Rejected" },
     needs_attention: { color: "bg-orange-200 text-orange-800 capitalize", label: "Needs Attention" },
@@ -194,7 +201,7 @@ export default function LoanApplicationDetails() {
     } else if (loanInfo.status === "rejected") {
       return [...baseTimelineStatuses, "rejected"].filter(status => status !== "approved")
     } else {
-      return [...baseTimelineStatuses, "approved", "rejected"].filter(status => status!== "rejected")
+      return [...baseTimelineStatuses, "approved", "rejected"].filter(status => status !== "rejected")
     }
   }
 
@@ -483,6 +490,36 @@ export default function LoanApplicationDetails() {
 
 
 
+  // Function to update priority
+  const updatePriority = async (newPriority: string) => {
+    try {
+      setApiLoading(prev => ({ ...prev, updatePriority: true })); // Set loading state
+      const { data } = await api.post(`/admin/applications/${params.id}/update-priority`, { priority: newPriority });
+      if (data.success) {
+        setLoanInfo((prev: any) => ({ ...prev, priority: newPriority }));
+        toast({
+          title: "Priority updated",
+          description: `Application priority changed to ${newPriority}`,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update priority",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Error updating priority:", err);
+      toast({
+        title: "Error",
+        description: "An error occurred while updating priority",
+        variant: "destructive",
+      });
+    } finally {
+      setApiLoading(prev => ({ ...prev, updatePriority: false })); // Reset loading state
+    }
+  };
+
   // Get status badge
   const getStatusBadge = (status: string) => {
     return <StatusBadge status={status} />
@@ -572,7 +609,7 @@ export default function LoanApplicationDetails() {
             <div className="flex flex-wrap gap-2 mt-2">
               {getStatusBadge(loanInfo.status)}
               {getPriorityBadge(loanInfo.priority)}
-              {loanInfo.status=="approved" ? (
+              {loanInfo.status == "approved" ? (
                 <Badge className="bg-green-200 text-green-800">Documents Complete</Badge>
               ) : (
                 <Badge className="bg-yellow-200 text-yellow-800">Documents Incomplete</Badge>
@@ -585,7 +622,7 @@ export default function LoanApplicationDetails() {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+            <TabsTrigger value="timeline">Timeline & Actions</TabsTrigger>
 
           </TabsList>
 
@@ -989,7 +1026,7 @@ export default function LoanApplicationDetails() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
+                <div className="space-y-4">
 
                   {/* Required Documents */}
                   <div>
@@ -1060,84 +1097,84 @@ export default function LoanApplicationDetails() {
                                     </div>
                                   </div>
                                   {Array.isArray(doc.uploadedFiles) && doc.uploadedFiles.length > 0 ? (
-                                      doc.uploadedFiles.map((file) => (
-                                        <div
-                                          key={file._id}
-                                          className="flex items-center justify-between p-3 pl-8 hover:bg-gray-100 rounded transition-colors"
-                                        >
-                                          <div className="flex items-center gap-3">
-                                            <FileText className="h-4 w-4 text-gray-500" />
-                                            <div>
-                                              <p className="text-sm">{file.name}</p>
-                                              <p className="text-xs text-gray-500">
-                                                Uploaded: {formatDate(file.updatedAt || new Date())}
-                                              </p>
-                                            </div>
-                                          </div>
-                                          <div className="flex items-center gap-2">
-
-
-                                            {documentStatusLoading[file._id] ? (
-                                              <div className="w-[120px] flex items-center justify-center">
-                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                                              </div>
-                                            ) : (
-                                              <Select
-                                                value={file.status || "pending"}
-                                                onValueChange={(value) =>
-                                                  updateDocumentStatus(file._id, value as "verified" | "rejected")
-                                                }
-                                              >
-                                                <SelectTrigger className="w-[120px]">
-                                                  <SelectValue placeholder="Status" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="uploaded">Uploaded</SelectItem>
-                                                  <SelectItem value="verified">Verified</SelectItem>
-                                                  <SelectItem value="rejected">Rejected</SelectItem>
-                                                </SelectContent>
-                                              </Select>
-                                            )}
-                                            <div className="flex items-center ml-2">
-                                              <Switch
-                                                checked={file.signRequiredRequested || false}
-                                                onChange={() => toggleSignRequired(file._id, file.signRequiredRequested || false)}
-                                                className={`${documentStatusLoading[`sign_${file._id}`] ? 'bg-gray-400' : 'bg-blue-600'
-                                                  } relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none`}
-                                                disabled={documentStatusLoading[`sign_${file._id}`]}
-                                              >
-                                                <span
-                                                  className={`${file.signRequiredRequested ? 'translate-x-6' : 'translate-x-1'
-                                                    } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
-                                                />
-                                              </Switch>
-
-
-
-
-                                              {documentStatusLoading[`sign_${file._id}`] && (
-                                                <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                                              )}
-                                              <span className="ml-2 text-xs text-gray-500">Signature</span>
-                                            </div>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => window.open(file.url, "_blank")}
-                                            >
-                                              <Eye className="h-4 w-4 mr-1" /> View
-                                            </Button>
+                                    doc.uploadedFiles.map((file) => (
+                                      <div
+                                        key={file._id}
+                                        className="flex items-center justify-between p-3 pl-8 hover:bg-gray-100 rounded transition-colors"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <FileText className="h-4 w-4 text-gray-500" />
+                                          <div>
+                                            <p className="text-sm">{file.name}</p>
+                                            <p className="text-xs text-gray-500">
+                                              Uploaded: {formatDate(file.updatedAt || new Date())}
+                                            </p>
                                           </div>
                                         </div>
-                                      ))
-                                    ) 
-                                   : (
-                                    <div className="p-3 pl-8">
-                                      <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-                                        Pending Upload
-                                      </Badge>
-                                    </div>
-                                  )}
+                                        <div className="flex items-center gap-2">
+
+
+                                          {documentStatusLoading[file._id] ? (
+                                            <div className="w-[120px] flex items-center justify-center">
+                                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                            </div>
+                                          ) : (
+                                            <Select
+                                              value={file.status || "pending"}
+                                              onValueChange={(value) =>
+                                                updateDocumentStatus(file._id, value as "verified" | "rejected")
+                                              }
+                                            >
+                                              <SelectTrigger className="w-[120px]">
+                                                <SelectValue placeholder="Status" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="uploaded">Uploaded</SelectItem>
+                                                <SelectItem value="verified">Verified</SelectItem>
+                                                <SelectItem value="rejected">Rejected</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          )}
+                                          <div className="flex items-center ml-2">
+                                            <Switch
+                                              checked={file.signRequiredRequested || false}
+                                              onChange={() => toggleSignRequired(file._id, file.signRequiredRequested || false)}
+                                              className={`${documentStatusLoading[`sign_${file._id}`] ? 'bg-gray-400' : 'bg-blue-600'
+                                                } relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none`}
+                                              disabled={documentStatusLoading[`sign_${file._id}`]}
+                                            >
+                                              <span
+                                                className={`${file.signRequiredRequested ? 'translate-x-6' : 'translate-x-1'
+                                                  } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+                                              />
+                                            </Switch>
+
+
+
+
+                                            {documentStatusLoading[`sign_${file._id}`] && (
+                                              <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                            )}
+                                            <span className="ml-2 text-xs text-gray-500">Signature</span>
+                                          </div>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => window.open(file.url, "_blank")}
+                                          >
+                                            <Eye className="h-4 w-4 mr-1" /> View
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ))
+                                  )
+                                    : (
+                                      <div className="p-3 pl-8">
+                                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                                          Pending Upload
+                                        </Badge>
+                                      </div>
+                                    )}
                                 </div>
                               ))}
                             </div>
@@ -1237,7 +1274,7 @@ export default function LoanApplicationDetails() {
                                           </div>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                         
+
                                           {additionalDocStatusLoading[file._id] ? (
                                             <div className="w-[120px] flex items-center justify-center">
                                               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
@@ -1262,7 +1299,7 @@ export default function LoanApplicationDetails() {
                                           )}
                                           <div className="flex items-center ml-2">
 
-                                          <Switch
+                                            <Switch
                                               checked={file.signRequiredRequested || false}
                                               onChange={() => toggleAdditionalSignRequired(file._id, file.signRequiredRequested || false)}
                                               className={`${additionalDocStatusLoading[`sign_${file._id}`] ? 'bg-gray-400' : 'bg-blue-600'
@@ -1274,7 +1311,7 @@ export default function LoanApplicationDetails() {
                                                   } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
                                               />
                                             </Switch>
-                                         
+
                                             {additionalDocStatusLoading[`sign_${file._id}`] && (
                                               <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                                             )}
@@ -1400,55 +1437,80 @@ export default function LoanApplicationDetails() {
 
           <TabsContent value="timeline">
             <Card>
-              <CardHeader>
-                <CardTitle>Timeline</CardTitle>
-                <CardDescription>Progress and history of application status and notes</CardDescription>
-              </CardHeader>
+         
               <CardContent>
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Actions</CardTitle>
-                    <CardDescription>Manage application status and add notes</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Update Status */}
-                    <div>
-                      <h3 className="font-medium mb-2">Update Status</h3>
-                      <div className="flex gap-2">
-                        <Select value={statusUpdate} onValueChange={setStatusUpdate}>
-                          <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="pending_review">Pending Review</SelectItem>
-                            <SelectItem value="pre_approved">Pre Approved</SelectItem>                    
-                            <SelectItem value="needs_attention">Needs Attention</SelectItem>
-                            <SelectItem value="approved">Approved</SelectItem>
-                            <SelectItem value="rejected">Rejected</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          onClick={handleStatusUpdate}
-                          disabled={!statusUpdate || apiLoading.handleStatusUpdate}
-                        >
-                          {apiLoading.handleStatusUpdate ? (
-                            <>
-                              <LoadingSpinner />
-                              Updating...
-                            </>
-                          ) : (
-                            "Update Status"
-                          )}
-                        </Button>
+            
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Actions</CardTitle>
+                      <CardDescription>Manage application status and priority</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                  
+
+                      {/* Update Status */}
+                      <div className="">
+                        <div>
+                          <h3 className="font-medium mb-2">Update Status</h3>
+                          <div className="flex gap-2">
+                            <Select value={statusUpdate} onValueChange={setStatusUpdate}>
+                              <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="pending_review">Pending Review</SelectItem>
+                                <SelectItem value="pre_approved">Pre Approved</SelectItem>
+                                <SelectItem value="needs_attention">Needs Attention</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              onClick={handleStatusUpdate}
+                              disabled={!statusUpdate || apiLoading.handleStatusUpdate}
+                            >
+                              {apiLoading.handleStatusUpdate ? (
+                                <>
+                                  <LoadingSpinner />
+                                  Updating...
+                                </>
+                              ) : (
+                                "Update Status"
+                              )}
+                            </Button>
+                          </div>
+
+                        </div>
+
+
+
                       </div>
-                    </div>
+
+                      <div>
+  <h3 className="font-medium text-lg">Update Priority</h3>
+  <CardDescription>Manage application priority</CardDescription>
+  <Select onValueChange={updatePriority} value={loanInfo.priority}>
+    <SelectTrigger className="w-full mt-2">
+      <SelectValue placeholder={LABELS.selectPriority} />
+      {apiLoading.updatePriority && <LoadingSpinner />} {/* Ensure this condition is correct */}
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="high">{LABELS.highPriority}</SelectItem>
+      <SelectItem value="medium">{LABELS.mediumPriority}</SelectItem>
+      <SelectItem value="low">{LABELS.lowPriority}</SelectItem>
+    </SelectContent>      
+  </Select>
+  
+</div>
+                    </CardContent>
+                  </Card>
 
 
 
-                  </CardContent>
                 </Card>
-                <div className="space-y-6 mt-4">
+                <div className="space-y-3 mt-4">
                   {/* Predefined Timeline */}
                   {getTimelineStatuses().map((status, index) => (
                     <div

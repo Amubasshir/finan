@@ -427,9 +427,7 @@ export default function AdminDashboard() {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending_review">Pending Review</SelectItem>
-                <SelectItem value="document_verification">Document Verification</SelectItem>
-                <SelectItem value="lender_submission">Lender Submission</SelectItem>
-                <SelectItem value="lender_assessment">Lender Assessment</SelectItem>
+                <SelectItem value="pre_approved">Pre Approved</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
                 <SelectItem value="needs_attention">Needs Attention</SelectItem>
@@ -500,7 +498,7 @@ export default function AdminDashboard() {
                           {sortBy === "lastUpdated" && <ArrowUpDown className="ml-2 h-4 w-4" />}
                         </div>
                       </TableHead>
-                      <TableHead>Assigned To</TableHead>
+                    
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -526,7 +524,7 @@ export default function AdminDashboard() {
                           <TableCell>{getPriorityBadge(app.priority)}</TableCell>
                           <TableCell>{formatDate(app.createdAt)}</TableCell>
                           <TableCell>{formatDate(app.updatedAt)}</TableCell>
-                          <TableCell>{app.assignedTo || "Unassigned"}</TableCell>
+                        
                           <TableCell className="text-right">
                             <div className="flex justify-end space-x-2">
                               <Button
@@ -622,26 +620,7 @@ export default function AdminDashboard() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <SelectLabel htmlFor="assignee-filter">Assigned To</SelectLabel>
-                <Select
-                  value={filterOptions.assignedTo || ""}
-                  onValueChange={(value) => setFilterOptions({ ...filterOptions, assignedTo: value || null })}
-                >
-                  <SelectTrigger id="assignee-filter">
-                    <SelectValue placeholder="Select assignee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Assignees</SelectItem>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {uniqueAssignees.map((assignee) => (
-                      <SelectItem key={assignee} value={assignee}>
-                        {assignee}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <SelectLabel htmlFor="date-from">Date From</SelectLabel>
