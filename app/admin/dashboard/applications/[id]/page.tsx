@@ -96,7 +96,7 @@ interface LoanApplication {
   _id: string
   status: string
   priority: string
-  assignedTo: string
+
   documentsComplete: boolean
   personal: {
     fullName: string
@@ -133,16 +133,16 @@ interface LoanApplication {
 // StatusBadge Component
 const StatusBadge = ({ status }: { status: string }) => {
   const statusMap: Record<string, { color: string; label: string }> = {
-    draft: { color: "bg-gray-200 text-gray-800", label: "Draft" },
-    submitted: { color: "bg-blue-200 text-blue-800", label: "Submitted" },
+    draft: { color: "bg-gray-200 text-gray-800 capitalize", label: "Draft" },
+    submitted: { color: "bg-blue-200 text-blue-800 capitalize", label: "Submitted" },
  
-    approved: { color: "bg-green-200 text-green-800", label: "Approved" },
-    rejected: { color: "bg-red-200 text-red-800", label: "Rejected" },
-    needs_attention: { color: "bg-orange-200 text-orange-800", label: "Needs Attention" },
+    approved: { color: "bg-green-200 text-green-800 capitalize", label: "Approved" },
+    rejected: { color: "bg-red-200 text-red-800 capitalize", label: "Rejected" },
+    needs_attention: { color: "bg-orange-200 text-orange-800 capitalize", label: "Needs Attention" },
   }
 
-  const statusInfo = statusMap[status] || { color: "bg-gray-200 text-gray-800", label: status }
-  return <Badge className={`${statusInfo.color} font-medium`}>{statusInfo.label}</Badge>
+  const statusInfo = statusMap[status] || { color: "bg-gray-200 text-gray-800 capitalize", label: status }
+  return <Badge className={`${statusInfo.color} font-medium capitalize`}>{statusInfo.label}</Badge>
 }
 
 // LoadingSpinner Component
@@ -572,7 +572,7 @@ export default function LoanApplicationDetails() {
             <div className="flex flex-wrap gap-2 mt-2">
               {getStatusBadge(loanInfo.status)}
               {getPriorityBadge(loanInfo.priority)}
-              {loanInfo.documentsComplete ? (
+              {loanInfo.status=="approved" ? (
                 <Badge className="bg-green-200 text-green-800">Documents Complete</Badge>
               ) : (
                 <Badge className="bg-yellow-200 text-yellow-800">Documents Incomplete</Badge>
@@ -1468,7 +1468,7 @@ export default function LoanApplicationDetails() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <StatusBadge status={status} />
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-gray-500 capitalize">
                             {isStatusDone(status)
                               ? formatDate(
                                 loanInfo.timeline.find((e: TimelineEvent) => e.status === status)?.date ||
@@ -1477,7 +1477,7 @@ export default function LoanApplicationDetails() {
                               : "Pending"}
                           </span>
                         </div>
-                        <p className="text-sm mt-1">
+                        <p className="text-sm mt-1 capitalize">
                           {isStatusDone(status) ? `Completed: ${status}` : `Awaiting: ${status}`}
                         </p>
                       </div>

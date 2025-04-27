@@ -28,14 +28,7 @@ const LoanInfo = mongoose.models.LoanInfo || mongoose.model('LoanInfo', new mong
     enum: ['high', 'medium', 'low'],
     default: 'medium'
   },
-  assignedTo: {
-    type: String,
-    default: null
-  },
-  documentsComplete: {
-    type: Boolean,
-    default: false
-  },
+
   personal: {
     fullName: { type: String, default: '' },
     email: { type: String, default: '' },
