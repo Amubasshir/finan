@@ -18,6 +18,7 @@ const LoanInfo = mongoose.models.LoanInfo || mongoose.model('LoanInfo', new mong
       'lender_assessment', 
       'approved', 
       'rejected', 
+      "pre_approved",
       'needs_attention'
     ],
     default: 'draft'
@@ -118,7 +119,8 @@ const LoanInfo = mongoose.models.LoanInfo || mongoose.model('LoanInfo', new mong
   timeline:[{
     status: { type: String, default: '' },
     date: { type: Date, default: Date.now },
-    description: { type: String, default: '' }
+    description: { type: String, default: '' },
+    changedBy: { type: String, default: 'Admin',lowecase:true },
   }],
   dateSubmitted: { type: Date, default: Date.now },
   lastUpdated: { type: Date, default: Date.now }

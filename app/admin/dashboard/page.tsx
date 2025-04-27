@@ -291,17 +291,7 @@ export default function AdminDashboard() {
     router.push(`/admin/dashboard/applications/${id}`)
   }
 
-  const handleEditApplication = (id: string) => {
-    router.push(`/admin/dashboard/applications/${id}/edit`)
-  }
 
-  const handleNewApplication = () => {
-    router.push('/admin/dashboard/applications/new')
-  }
-
-  const handleTeamView = () => {
-    router.push('/admin/team')
-  }
 
   const resetFilters = () => {
     setFilterOptions({
@@ -359,16 +349,7 @@ export default function AdminDashboard() {
             <h1 className="text-3xl font-bold mb-1">Admin Dashboard</h1>
             <p className="text-gray-500">Manage and process loan applications</p>
           </div>
-          <div className="mt-4 md:mt-0 flex items-center space-x-3">
-            <Button variant="outline" className="hidden md:flex" onClick={handleTeamView}>
-              <Users className="mr-2 h-4 w-4" />
-              Team
-            </Button>
-            <Button className="hidden md:flex" onClick={handleNewApplication}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Application
-            </Button>
-          </div>
+        
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -556,14 +537,7 @@ export default function AdminDashboard() {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEditApplication(app._id)}
-                                title="Edit Application"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
+                         
                             </div>
                           </TableCell>
                         </TableRow>

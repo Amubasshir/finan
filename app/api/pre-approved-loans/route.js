@@ -3,7 +3,7 @@ import connectDB from '@/lib/db';
 import LoanInfo from '@/models/LoanInfo';
 import { verifyToken } from '@/lib/auth';
 
-// Get pre-approved loans for a user
+// Get pre_approved loans for a user
 export async function GET(request) {
   try {
     await connectDB();
@@ -31,7 +31,7 @@ export async function GET(request) {
       );
     }
     
-    // Generate pre-approved loan offers based on the loan application data
+    // Generate pre_approved loan offers based on the loan application data
     const preApprovedLoans = loanInfos.flatMap(loanInfo => {
       // Calculate loan amount based on property value and LVR
       const propertyValue = loanInfo.property?.estimatedValue || 0;
@@ -163,7 +163,7 @@ export async function GET(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('Get pre-approved loans error:', error);
+    console.error('Get pre_approved loans error:', error);
     return NextResponse.json(
       { success: false, message: error.message || 'Something went wrong' },
       { status: 500 }

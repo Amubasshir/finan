@@ -31,46 +31,60 @@ export async function GET(
     return NextResponse.json({ success: false, message: 'Failed to fetch application' }, { status: 500 });
   }
 }
-
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
     await connectDB();
-    
-    // Check authentication
+
     const userId = await verifyAdminToken(req);
     if (!userId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const id = params.id;
     const data = await req.json();
-    
-    // Validate the data
-    if (!data) {
+
+    if (!data || typeof data !== 'object') {
       return NextResponse.json({ success: false, message: 'Invalid data' }, { status: 400 });
     }
-    
-    // Update the application using proper Mongoose syntax
-    const updatedApplication = await LoanInfo.findByIdAndUpdate(
-      id,
-      { $set: data },
-      { new: true } // Return the updated document
+
+    const { status, timeline: newTimelineEntry } = data;
+
+    if (!status || !newTimelineEntry || typeof newTimelineEntry !== 'object') {
+      return NextResponse.json({ success: false, message: 'Missing status or timeline entry' }, { status: 400 });
+    }
+
+
+    // First, remove old timeline entry with same status
+    const application = await LoanInfo.findOneAndUpdate(
+      { _id: id },
+      {
+        $set: { status },
+        $pull: { timeline: { status: newTimelineEntry.status } }
+      },
+      { new: true }
     );
-    
-    if (!updatedApplication) {
+
+    if (!application) {
       return NextResponse.json({ success: false, message: 'Application not found' }, { status: 404 });
     }
-    
+
+    // Now push the new timeline entry
+    const updatedApplication = await LoanInfo.findOneAndUpdate(
+      { _id: id },
+      { $push: { timeline: newTimelineEntry } },
+      { new: true }
+    );
+
     return NextResponse.json({ success: true, application: updatedApplication });
+
   } catch (error) {
     console.error('Error updating application:', error);
     return NextResponse.json({ success: false, message: 'Failed to update application' }, { status: 500 });
   }
 }
-
 export async function DELETE(
   req: Request,
   { params }: { params: { id: string } }

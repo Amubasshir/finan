@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { Switch } from '@headlessui/react';
 import {
   Card,
   CardContent,
@@ -29,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+
 import {
   Eye,
   Download,
@@ -46,6 +48,8 @@ import {
   DollarSign,
   CreditCard,
   Building,
+  CheckCircle,
+  Circle,
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "@/components/ui/use-toast"
@@ -58,6 +62,18 @@ interface TimelineEvent {
   description: string
   date: string
   changedBy: string
+}
+
+interface UploadedFile {
+  id: string
+  name: string
+  size: number
+  uploadDate: string
+  url: string
+  cloudinaryId: string
+  _id: string
+  status?: "pending" | "verified" | "rejected"
+  signRequiredRequested?: boolean
 }
 
 interface Document {
@@ -73,7 +89,7 @@ interface AdditionalDocument {
   name: string
   status: "requested" | "pending" | "verified" | "rejected"
   requestedAt: string
-  uploadedFiles: string[]
+  uploadedFiles: [UploadedFile]
 }
 
 interface LoanApplication {
@@ -119,19 +135,28 @@ const StatusBadge = ({ status }: { status: string }) => {
   const statusMap: Record<string, { color: string; label: string }> = {
     draft: { color: "bg-gray-200 text-gray-800", label: "Draft" },
     submitted: { color: "bg-blue-200 text-blue-800", label: "Submitted" },
-    pending_review: { color: "bg-yellow-200 text-yellow-800", label: "Pending Review" },
-    document_verification: { color: "bg-purple-200 text-purple-800", label: "Document Verification" },
-    lender_submission: { color: "bg-indigo-200 text-indigo-800", label: "Lender Submission" },
-    lender_assessment: { color: "bg-cyan-200 text-cyan-800", label: "Lender Assessment" },
+ 
     approved: { color: "bg-green-200 text-green-800", label: "Approved" },
     rejected: { color: "bg-red-200 text-red-800", label: "Rejected" },
     needs_attention: { color: "bg-orange-200 text-orange-800", label: "Needs Attention" },
-    note: { color: "bg-gray-100 text-gray-600", label: "Note" },
   }
 
   const statusInfo = statusMap[status] || { color: "bg-gray-200 text-gray-800", label: status }
   return <Badge className={`${statusInfo.color} font-medium`}>{statusInfo.label}</Badge>
 }
+
+// LoadingSpinner Component
+const LoadingSpinner = () => (
+  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+)
+
+// Base predefined timeline statuses (excluding terminal statuses)
+const baseTimelineStatuses = [
+  "draft",
+  "pending_review",
+  "pre_approved",
+  "needs_attention",
+]
 
 export default function LoanApplicationDetails() {
   const router = useRouter()
@@ -141,19 +166,47 @@ export default function LoanApplicationDetails() {
   const [activeTab, setActiveTab] = useState("overview")
   const [newNote, setNewNote] = useState("")
   const [statusUpdate, setStatusUpdate] = useState("")
-  const [documentRequest, setDocumentRequest] = useState("")
+  const [additionalDocumentRequestData, setAdditionalDocumentRequestData] = useState<any>({ category: "additional", name: "" })
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [additionalDocs, setAdditionalDocs] = useState<AdditionalDocument[]>([])
+  const [additionalDocs, setAdditionalDocs] = useState<any[]>([])
+  const [documents, setDocuments] = useState<any>([])
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const params = useParams()
+
+  // Centralized loading state for all API calls
+  const [apiLoading, setApiLoading] = useState<Record<string, boolean>>({
+    fetchLoanInfo: false,
+    fetchDocuments: false,
+    handleStatusUpdate: false,
+    handleAddNote: false,
+    handleRequestDocument: false,
+  })
+
+  // State for document status loading
+  const [documentStatusLoading, setDocumentStatusLoading] = useState<Record<string, boolean>>({})
+  const [additionalDocStatusLoading, setAdditionalDocStatusLoading] = useState<Record<string, boolean>>({})
+
+  // Dynamic timeline statuses based on current status
+  const getTimelineStatuses = () => {
+    if (!loanInfo) return baseTimelineStatuses
+    if (loanInfo.status === "approved") {
+      return [...baseTimelineStatuses, "approved"].filter(status => status !== "rejected")
+    } else if (loanInfo.status === "rejected") {
+      return [...baseTimelineStatuses, "rejected"].filter(status => status !== "approved")
+    } else {
+      return [...baseTimelineStatuses, "approved", "rejected"].filter(status => status!== "rejected")
+    }
+  }
+
   // Fetch loan application details
   const fetchLoanInfo = async () => {
     try {
-      setLoading(true)
+      setApiLoading(prev => ({ ...prev, fetchLoanInfo: true }))
       const { data } = await api.get(`/admin/applications/${params.id}`)
       if (data.success) {
         setLoanInfo(data.application)
         setStatusUpdate(data.application.status)
-        fetchAdditionalDocuments()
+        await fetchDocuments()
       } else {
         setError("Failed to fetch application details")
       }
@@ -161,42 +214,51 @@ export default function LoanApplicationDetails() {
       console.error("Error fetching application:", err)
       setError("An error occurred while fetching application")
     } finally {
+      setApiLoading(prev => ({ ...prev, fetchLoanInfo: false }))
       setLoading(false)
     }
   }
 
   // Fetch additional documents
-  const fetchAdditionalDocuments = async () => {
+  const fetchDocuments = async () => {
     try {
+      setApiLoading(prev => ({ ...prev, fetchDocuments: true }))
       const { data } = await api.get(`/admin/applications/${params.id}/additional`)
+      // console.log(data.documents)
       if (data.success) {
         setAdditionalDocs(data.additionalDocuments || [])
+        setDocuments(data.documents || [])
       }
     } catch (err) {
-      console.error("Error fetching additional documents:", err)
+      console.error("Error fetching documents:", err)
       toast({
         title: "Error",
-        description: "Failed to fetch additional documents",
+        description: "Failed to fetch documents",
         variant: "destructive",
       })
+    } finally {
+      setApiLoading(prev => ({ ...prev, fetchDocuments: false }))
     }
   }
 
   // Handle status update
   const handleStatusUpdate = async () => {
     if (!loanInfo || !statusUpdate) return
+
     try {
-      const { data } = await api.patch(`/admin/applications/${params.id}`, {
+      setApiLoading(prev => ({ ...prev, handleStatusUpdate: true }))
+      const payload = {
         status: statusUpdate,
-        $push: {
-          timeline: {
-            status: statusUpdate,
-            description: `Status changed to ${statusUpdate}`,
-            date: new Date().toISOString(),
-            changedBy: "Admin",
-          },
+        timeline: {
+          status: statusUpdate,
+          description: `Status changed to ${statusUpdate}`,
+          date: new Date().toISOString(),
+          changedBy: "Admin",
         },
-      })
+      }
+
+      const { data } = await api.patch(`/admin/applications/${params.id}`, payload)
+
       if (data.success) {
         setLoanInfo(data.application)
         toast({
@@ -206,7 +268,7 @@ export default function LoanApplicationDetails() {
       } else {
         toast({
           title: "Error",
-          description: "Failed to update status",
+          description: data.message || "Failed to update status",
           variant: "destructive",
         })
       }
@@ -217,62 +279,57 @@ export default function LoanApplicationDetails() {
         description: "An error occurred while updating status",
         variant: "destructive",
       })
+    } finally {
+      setApiLoading(prev => ({ ...prev, handleStatusUpdate: false }))
     }
   }
 
-  // Handle adding a note
-  const handleAddNote = async () => {
-    if (!newNote.trim() || !loanInfo) return
-    try {
-      const { data } = await api.patch(`/admin/applications/${params.id}`, {
-        $push: {
-          timeline: {
-            status: "note",
-            description: newNote,
-            date: new Date().toISOString(),
-            changedBy: "Admin",
-          },
-        },
-      })
-      if (data.success) {
-        setLoanInfo(data.application)
-        setNewNote("")
-        toast({
-          title: "Note added",
-          description: "Your note has been added to the timeline",
-        })
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to add note",
-          variant: "destructive",
-        })
-      }
-    } catch (err) {
-      console.error("Error adding note:", err)
-      toast({
-        title: "Error",
-        description: "An error occurred while adding note",
-        variant: "destructive",
-      })
-    }
-  }
 
-  // Handle requesting a new document
+
+  // Handle requesting additional document
   const handleRequestDocument = async () => {
-    if (!documentRequest.trim() || !loanInfo) return
+    // Reset errors first
+    setFormErrors({})
+
+    // Collect all validation errors
+    const errors: Record<string, string> = {}
+
+    if (!additionalDocumentRequestData.name?.trim()) {
+      errors.name = "Document name is required"
+    }
+
+    if (!additionalDocumentRequestData.category) {
+      errors.category = "Category is required"
+    }
+
+    if (!additionalDocumentRequestData.description?.trim()) {
+      errors.description = "Description is required"
+    }
+
+    if (!additionalDocumentRequestData.deadline) {
+      errors.deadline = "Deadline is required"
+    }
+
+    // If there are errors, set them and stop form submission
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
+      return
+    }
+
     try {
+      setApiLoading(prev => ({ ...prev, handleRequestDocument: true }))
       const { data } = await api.post(`/admin/applications/${params.id}/additional`, {
-        documentName: documentRequest,
+        ...additionalDocumentRequestData,
+        requestedBy: "Admin",
+        requestedAt: new Date().toISOString(),
         status: "requested",
       })
       if (data.success) {
-        setLoanInfo(data.application)
-        setDocumentRequest("")
-        fetchAdditionalDocuments()
+        setAdditionalDocumentRequestData({ category: "additional", name: "" })
+        await fetchDocuments()
         toast({
           title: "Document requested",
-          description: `Requested ${documentRequest} from applicant`,
+          description: `Successfully requested ${additionalDocumentRequestData.name} from applicant`,
         })
       } else {
         toast({
@@ -281,59 +338,26 @@ export default function LoanApplicationDetails() {
           variant: "destructive",
         })
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error requesting document:", err)
       toast({
         title: "Error",
-        description: "An error occurred while requesting document",
+        description: err?.response?.data?.message || "An error occurred while requesting document",
         variant: "destructive",
       })
+    } finally {
+      setApiLoading(prev => ({ ...prev, handleRequestDocument: false }))
     }
   }
 
-  // Handle file upload
-  const handleFileUpload = async () => {
-    if (!selectedFile || !loanInfo) return
-    try {
-      const formData = new FormData()
-      formData.append("file", selectedFile)
-      const { data } = await api.post(`/admin/applications/${params.id}/upload`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
-      if (data.success) {
-        setLoanInfo(data.application)
-        setSelectedFile(null)
-        fetchAdditionalDocuments()
-        toast({
-          title: "Document uploaded",
-          description: "Document has been uploaded successfully",
-        })
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to upload document",
-          variant: "destructive",
-        })
-      }
-    } catch (err) {
-      console.error("Error uploading document:", err)
-      toast({
-        title: "Error",
-        description: "An error occurred while uploading document",
-        variant: "destructive",
-      })
-    }
-  }
-
-  // Update document status
+  // Update document status with loading spinner
   const updateDocumentStatus = async (docId: string, status: "verified" | "rejected") => {
     try {
+      // console.log(docId, status)
+      setDocumentStatusLoading(prev => ({ ...prev, [docId]: true }))
       const { data } = await api.patch(`/admin/applications/${params.id}/documents/${docId}`, { status })
       if (data.success) {
-        setLoanInfo(data.application)
-        fetchAdditionalDocuments()
+        await fetchDocuments()
         toast({
           title: "Document status updated",
           description: `Document status changed to ${status}`,
@@ -352,8 +376,112 @@ export default function LoanApplicationDetails() {
         description: "An error occurred while updating document status",
         variant: "destructive",
       })
+    } finally {
+      setDocumentStatusLoading(prev => ({ ...prev, [docId]: false }))
     }
   }
+
+  // Update additional document status with loading spinner
+  const updateAdditionalDocumentStatus = async (docId: string, status: "verified" | "rejected") => {
+    try {
+      setAdditionalDocStatusLoading(prev => ({ ...prev, [docId]: true }))
+      const { data } = await api.patch(`/admin/applications/${params.id}/additional/${docId}`, { status })
+      if (data.success) {
+
+        await fetchDocuments()
+        toast({
+          title: "Document status updated",
+          description: `Additional document status changed to ${status}`,
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update additional document status",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      console.error("Error updating additional document status:", err)
+      toast({
+        title: "Error",
+        description: "An error occurred while updating additional document status",
+        variant: "destructive",
+      })
+    } finally {
+      setAdditionalDocStatusLoading(prev => ({ ...prev, [docId]: false }))
+    }
+  }
+
+
+  // Toggle sign required for regular document
+  const toggleSignRequired = async (docId: string, currentValue: boolean) => {
+    try {
+      setDocumentStatusLoading(prev => ({ ...prev, [`sign_${docId}`]: true }));
+
+      const { data } = await api.patch(`/admin/applications/${params.id}/documents/${docId}`, {
+        signRequiredRequested: !currentValue
+      });
+
+      if (data.success) {
+        await fetchDocuments();
+        toast({
+          title: "Document updated",
+          description: `Signature requirement ${!currentValue ? 'enabled' : 'disabled'}`,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update document",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Error updating document:", err);
+      toast({
+        title: "Error",
+        description: "An error occurred while updating document",
+        variant: "destructive",
+      });
+    } finally {
+      setDocumentStatusLoading(prev => ({ ...prev, [`sign_${docId}`]: false }));
+    }
+  };
+
+  // Toggle sign required for additional document
+  const toggleAdditionalSignRequired = async (docId: string, currentValue: boolean) => {
+    try {
+      setAdditionalDocStatusLoading(prev => ({ ...prev, [`sign_${docId}`]: true }));
+
+      const { data } = await api.patch(`/admin/applications/${params.id}/additional/${docId}`, {
+        signRequiredRequested: !currentValue
+      });
+
+      if (data.success) {
+        await fetchDocuments();
+        toast({
+          title: "Document updated",
+          description: `Signature requirement ${!currentValue ? 'enabled' : 'disabled'}`,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update document",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Error updating document:", err);
+      toast({
+        title: "Error",
+        description: "An error occurred while updating document",
+        variant: "destructive",
+      });
+    } finally {
+      setAdditionalDocStatusLoading(prev => ({ ...prev, [`sign_${docId}`]: false }));
+    }
+  };
+
+
 
   // Get status badge
   const getStatusBadge = (status: string) => {
@@ -384,13 +512,24 @@ export default function LoanApplicationDetails() {
     })
   }
 
+  // Determine if a status is "done" based on position in timelineStatuses
+  const isStatusDone = (status: string) => {
+    if (!loanInfo) return false
+    const timelineStatuses = getTimelineStatuses()
+    const currentStatusIndex = timelineStatuses.indexOf(loanInfo.status)
+    const statusIndex = timelineStatuses.indexOf(status)
+
+    // Mark as done if the status is at or before the current status
+    return statusIndex <= currentStatusIndex
+  }
+
   // Fetch data on mount
   useEffect(() => {
     fetchLoanInfo()
   }, [params.id])
 
-  // Loading state
-  if (loading) {
+  // Loading state for initial fetch
+  if (loading || apiLoading.fetchLoanInfo) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -405,7 +544,14 @@ export default function LoanApplicationDetails() {
         <AlertTriangle className="mx-auto h-12 w-12 text-red-500" />
         <h3 className="mt-2 text-lg font-medium text-gray-900">{error || "Application not found"}</h3>
         <Button className="mt-4" onClick={fetchLoanInfo}>
-          Retry
+          {apiLoading.fetchLoanInfo ? (
+            <>
+              <LoadingSpinner />
+              Retrying...
+            </>
+          ) : (
+            "Retry"
+          )}
         </Button>
       </div>
     )
@@ -417,7 +563,7 @@ export default function LoanApplicationDetails() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div>
             <Button variant="ghost" className="mb-2 hover:bg-gray-100 -ml-4" asChild>
-              <Link href="/admin/dashboard/applications" className="flex items-center">
+              <Link href="/admin/dashboard" className="flex items-center">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Applications
               </Link>
@@ -433,15 +579,14 @@ export default function LoanApplicationDetails() {
               )}
             </div>
           </div>
-
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="actions">Actions</TabsTrigger>
+
           </TabsList>
 
           <TabsContent value="overview">
@@ -816,7 +961,7 @@ export default function LoanApplicationDetails() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {Object.entries(loanInfo.additionalFeatures).map(([key, value]) => (
+                      {Object.entries(loanInfo.additionalFeatures || {}).map(([key, value]) => (
                         <div key={key} className="flex items-center gap-3">
                           <FileText className="h-5 w-5 text-gray-500" />
                           <p>
@@ -845,57 +990,156 @@ export default function LoanApplicationDetails() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {/* Main Documents */}
+
+                  {/* Required Documents */}
                   <div>
                     <h3 className="font-medium mb-4">Required Documents</h3>
-                    {Array.isArray(loanInfo.documents) && loanInfo.documents.length > 0 ? (
-                      <div className="space-y-2">
-                        {loanInfo.documents.map((doc) => (
-                          <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <FileText className="h-5 w-5 text-gray-500" />
-                              <div>
-                                <p className="font-medium">{doc.name}</p>
-                                <p className="text-sm text-gray-500">
-                                  Uploaded: {formatDate(doc.uploadDate)}
-                                </p>
+                    {Array.isArray(documents) && documents.length > 0 ? (
+                      <div className="space-y-4">
+                        {/* Group documents by category */}
+                        {Object.entries(
+                          documents.reduce((acc, doc) => {
+                            const category = doc.category || "other"
+                            if (!acc[category]) acc[category] = []
+                            acc[category].push(doc)
+                            return acc
+                          }, {} as Record<string, any[]>)
+                        ).map(([category, docs]) => (
+                          <div key={category} className="border rounded-lg overflow-hidden">
+                            <div
+                              className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer"
+                              onClick={() => {
+                                const elem = document.getElementById(`document-category-${category}`)
+                                if (elem) {
+                                  elem.classList.toggle("hidden")
+                                }
+                              }}
+                            >
+                              <div className="flex items-center gap-2 font-medium capitalize">
+                                {category === "identity" ? (
+                                  <User className="h-4 w-4 text-gray-500" />
+                                ) : category === "financial" ? (
+                                  <DollarSign className="h-4 w-4 text-gray-500" />
+                                ) : category === "property" ? (
+                                  <Home className="h-4 w-4 text-gray-500" />
+                                ) : (
+                                  <FileText className="h-4 w-4 text-gray-500" />
+                                )}
+                                {category.replace("_", " ")}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {docs.every(doc => doc.uploadedFiles && doc.uploadedFiles.length > 0) ? (
+                                  <Badge variant="success" className="bg-green-100 text-green-800">Uploaded</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Incomplete</Badge>
+                                )}
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="chevron-down"
+                                >
+                                  <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                variant={
-                                  doc.status === "verified"
-                                    ? "success"
-                                    : doc.status === "rejected"
-                                      ? "destructive"
-                                      : "secondary"
-                                }
-                              >
-                                {doc.status}
-                              </Badge>
-                              {doc.url && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => window.open(doc.url, "_blank")}
-                                >
-                                  <Eye className="h-4 w-4 mr-1" /> View
-                                </Button>
-                              )}
-                              <Select
-                                value={doc.status}
-                                onValueChange={(value) =>
-                                  updateDocumentStatus(doc.id, value as "verified" | "rejected")
-                                }
-                              >
-                                <SelectTrigger className="w-[120px]">
-                                  <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="verified">Verify</SelectItem>
-                                  <SelectItem value="rejected">Reject</SelectItem>
-                                </SelectContent>
-                              </Select>
+                            <div id={`document-category-${category}`} className="divide-y">
+                              {docs.map((doc) => (
+                                <div key={doc._id} className="p-3">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <FileText className="h-5 w-5 text-gray-500" />
+                                    <div>
+                                      <p className="font-medium">{doc.name}</p>
+                                      <p className="text-sm text-gray-500">{doc.description}</p>
+                                    </div>
+                                  </div>
+                                  {Array.isArray(doc.uploadedFiles) && doc.uploadedFiles.length > 0 ? (
+                                      doc.uploadedFiles.map((file) => (
+                                        <div
+                                          key={file._id}
+                                          className="flex items-center justify-between p-3 pl-8 hover:bg-gray-100 rounded transition-colors"
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <FileText className="h-4 w-4 text-gray-500" />
+                                            <div>
+                                              <p className="text-sm">{file.name}</p>
+                                              <p className="text-xs text-gray-500">
+                                                Uploaded: {formatDate(file.updatedAt || new Date())}
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+
+
+                                            {documentStatusLoading[file._id] ? (
+                                              <div className="w-[120px] flex items-center justify-center">
+                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                              </div>
+                                            ) : (
+                                              <Select
+                                                value={file.status || "pending"}
+                                                onValueChange={(value) =>
+                                                  updateDocumentStatus(file._id, value as "verified" | "rejected")
+                                                }
+                                              >
+                                                <SelectTrigger className="w-[120px]">
+                                                  <SelectValue placeholder="Status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="uploaded">Uploaded</SelectItem>
+                                                  <SelectItem value="verified">Verified</SelectItem>
+                                                  <SelectItem value="rejected">Rejected</SelectItem>
+                                                </SelectContent>
+                                              </Select>
+                                            )}
+                                            <div className="flex items-center ml-2">
+                                              <Switch
+                                                checked={file.signRequiredRequested || false}
+                                                onChange={() => toggleSignRequired(file._id, file.signRequiredRequested || false)}
+                                                className={`${documentStatusLoading[`sign_${file._id}`] ? 'bg-gray-400' : 'bg-blue-600'
+                                                  } relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none`}
+                                                disabled={documentStatusLoading[`sign_${file._id}`]}
+                                              >
+                                                <span
+                                                  className={`${file.signRequiredRequested ? 'translate-x-6' : 'translate-x-1'
+                                                    } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+                                                />
+                                              </Switch>
+
+
+
+
+                                              {documentStatusLoading[`sign_${file._id}`] && (
+                                                <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                              )}
+                                              <span className="ml-2 text-xs text-gray-500">Signature</span>
+                                            </div>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => window.open(file.url, "_blank")}
+                                            >
+                                              <Eye className="h-4 w-4 mr-1" /> View
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) 
+                                   : (
+                                    <div className="p-3 pl-8">
+                                      <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                                        Pending Upload
+                                      </Badge>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           </div>
                         ))}
@@ -905,45 +1149,157 @@ export default function LoanApplicationDetails() {
                     )}
                   </div>
 
-                  {/* Additional Documents */}
+                  {/* Additional Documents with Categories */}
                   <div>
                     <h3 className="font-medium mb-4">Additional Documents</h3>
                     {Array.isArray(additionalDocs) && additionalDocs.length > 0 ? (
-                      <div className="space-y-2">
-                        {additionalDocs.map((doc) => (
-                          <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <FileText className="h-5 w-5 text-gray-500" />
-                              <div>
-                                <p className="font-medium">{doc.name}</p>
-                                <p className="text-sm text-gray-500">
-                                  Requested: {formatDate(doc.requestedAt)}
-                                </p>
+                      <div className="space-y-4">
+                        {/* Group additional documents by category */}
+                        {Object.entries(
+                          additionalDocs.reduce((acc, doc) => {
+                            const category = doc.category || "other"
+                            if (!acc[category]) acc[category] = []
+                            acc[category].push(doc)
+                            return acc
+                          }, {} as Record<string, any[]>)
+                        ).map(([category, docs]) => (
+                          <div key={category} className="border rounded-lg overflow-hidden">
+                            <div
+                              className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer"
+                              onClick={() => {
+                                const elem = document.getElementById(`additional-category-${category}`)
+                                if (elem) {
+                                  elem.classList.toggle("hidden")
+                                }
+                              }}
+                            >
+                              <div className="flex items-center gap-2 font-medium capitalize">
+                                {category === "identity" ? (
+                                  <User className="h-4 w-4 text-gray-500" />
+                                ) : category === "financial" ? (
+                                  <DollarSign className="h-4 w-4 text-gray-500" />
+                                ) : category === "property" ? (
+                                  <Home className="h-4 w-4 text-gray-500" />
+                                ) : category === "additional" ? (
+                                  <Plus className="h-4 w-4 text-gray-500" />
+                                ) : (
+                                  <FileText className="h-4 w-4 text-gray-500" />
+                                )}
+                                {category.replace("_", " ")}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {docs.every(doc => doc.uploadedFiles && doc.uploadedFiles.length > 0) ? (
+                                  <Badge variant="success" className="bg-green-100 text-green-800">Uploded</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Incomplete</Badge>
+                                )}
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="chevron-down"
+                                >
+                                  <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                variant={
-                                  doc.status === "verified"
-                                    ? "success"
-                                    : doc.status === "rejected"
-                                      ? "destructive"
-                                      : "secondary"
-                                }
-                              >
-                                {doc.status}
-                              </Badge>
-                              {Array.isArray(doc.uploadedFiles) && doc.uploadedFiles.length > 0 ? (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => window.open(doc.uploadedFiles[0], "_blank")}
-                                >
-                                  <Eye className="h-4 w-4 mr-1" /> View
-                                </Button>
-                              ) : (
-                                <Badge variant="outline">Pending Upload</Badge>
-                              )}
+                            <div id={`additional-category-${category}`} className="divide-y">
+                              {docs.map((doc) => (
+                                <div key={doc._id} className="p-3">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <FileText className="h-5 w-5 text-gray-500" />
+                                    <div>
+                                      <p className="font-medium">{doc.name}</p>
+                                      <p className="text-sm text-gray-500">
+                                        Requested: {formatDate(doc.requestedAt || new Date())}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {Array.isArray(doc.uploadedFiles) && doc.uploadedFiles.length > 0 ? (
+                                    doc.uploadedFiles.map((file) => (
+                                      <div
+                                        key={file._id}
+                                        className="flex items-center justify-between p-3 pl-8 hover:bg-gray-100 rounded transition-colors"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <FileText className="h-4 w-4 text-gray-500" />
+                                          <div>
+                                            <p className="text-sm">{file.name}</p>
+                                            <p className="text-xs text-gray-500">
+                                              Uploaded: {formatDate(file.uploadDate || new Date())}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                         
+                                          {additionalDocStatusLoading[file._id] ? (
+                                            <div className="w-[120px] flex items-center justify-center">
+                                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                            </div>
+                                          ) : (
+                                            <Select
+                                              value={file.status || "pending"}
+                                              onValueChange={(value) =>
+                                                updateAdditionalDocumentStatus(file._id, value as "verified" | "rejected")
+                                              }
+                                            >
+                                              <SelectTrigger className="w-[120px]">
+                                                <SelectValue placeholder="Status" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="requested">Requested</SelectItem>
+                                                <SelectItem value="pending">Pending</SelectItem>
+                                                <SelectItem value="verified">Verified</SelectItem>
+                                                <SelectItem value="rejected">Rejected</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          )}
+                                          <div className="flex items-center ml-2">
+
+                                          <Switch
+                                              checked={file.signRequiredRequested || false}
+                                              onChange={() => toggleAdditionalSignRequired(file._id, file.signRequiredRequested || false)}
+                                              className={`${additionalDocStatusLoading[`sign_${file._id}`] ? 'bg-gray-400' : 'bg-blue-600'
+                                                } relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none`}
+                                              disabled={additionalDocStatusLoading[`sign_${file._id}`]}
+                                            >
+                                              <span
+                                                className={`${file.signRequiredRequested ? 'translate-x-6' : 'translate-x-1'
+                                                  } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+                                              />
+                                            </Switch>
+                                         
+                                            {additionalDocStatusLoading[`sign_${file._id}`] && (
+                                              <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                            )}
+                                            <span className="ml-2 text-xs text-gray-500">Signature</span>
+                                          </div>
+
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => window.open(file.url, "_blank")}
+                                          >
+                                            <Eye className="h-4 w-4 mr-1" /> View
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="p-3 pl-8">
+                                      <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                                        Pending Upload
+                                      </Badge>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           </div>
                         ))}
@@ -953,35 +1309,91 @@ export default function LoanApplicationDetails() {
                     )}
                   </div>
 
-                  {/* Request New Document */}
-                  <div className="pt-4 border-t">
-                    <h3 className="font-medium mb-4">Request Additional Document</h3>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Document name"
-                        value={documentRequest}
-                        onChange={(e) => setDocumentRequest(e.target.value)}
-                      />
-                      <Button onClick={handleRequestDocument} disabled={!documentRequest.trim()}>
-                        <Plus className="h-4 w-4 mr-1" /> Request
-                      </Button>
-                    </div>
-                  </div>
 
-                  {/* Upload Document */}
-                  <div className="pt-4 border-t">
-                    <h3 className="font-medium mb-4">Upload Document</h3>
-                    <div className="flex gap-2">
+                </div>
+
+
+
+                {/* Request New Document */}
+                <div className="pt-4 border-t">
+                  <h3 className="font-medium mb-4">Request Additional Document</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="doc-name">Document Name</Label>
                       <Input
-                        type="file"
-                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                        id="doc-name"
+                        placeholder="W-2 Form, Bank Statement, etc."
+                        value={additionalDocumentRequestData.name || ""}
+                        onChange={(e) => setAdditionalDocumentRequestData((prev: any) => ({ ...prev, name: e.target.value }))}
+                        className={formErrors.name ? "border-red-500" : ""}
                       />
-                      <Button onClick={handleFileUpload} disabled={!selectedFile}>
-                        <Upload className="h-4 w-4 mr-1" /> Upload
-                      </Button>
+                      {formErrors.name && <p className="text-sm text-red-500 mt-1">{formErrors.name}</p>}
                     </div>
+
+                    <div>
+                      <Label htmlFor="doc-category">Category</Label>
+                      <Select
+                        value={additionalDocumentRequestData.category || ""}
+                        onValueChange={(value) => setAdditionalDocumentRequestData((prev: any) => ({ ...prev, category: value }))}
+                      >
+                        <SelectTrigger id="doc-category" className={formErrors.category ? "border-red-500" : ""}>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="income">Income</SelectItem>
+                          <SelectItem value="identity">Identity</SelectItem>
+                          <SelectItem value="property">Property</SelectItem>
+                          <SelectItem value="financial">Financial</SelectItem>
+                          <SelectItem value="additional">Additional</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {formErrors.category && <p className="text-sm text-red-500 mt-1">{formErrors.category}</p>}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="doc-description">Description</Label>
+                      <Textarea
+                        id="doc-description"
+                        placeholder="Please provide details about what this document should contain"
+                        value={additionalDocumentRequestData.description || ""}
+                        onChange={(e) => setAdditionalDocumentRequestData((prev: any) => ({ ...prev, description: e.target.value }))}
+                        className={formErrors.description ? "border-red-500" : ""}
+                      />
+                      {formErrors.description && <p className="text-sm text-red-500 mt-1">{formErrors.description}</p>}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="doc-deadline">Deadline</Label>
+                      <Input
+                        id="doc-deadline"
+                        type="date"
+                        value={additionalDocumentRequestData.deadline || ""}
+                        onChange={(e) => setAdditionalDocumentRequestData((prev: any) => ({ ...prev, deadline: e.target.value }))}
+                        className={formErrors.deadline ? "border-red-500" : ""}
+                      />
+                      {formErrors.deadline && <p className="text-sm text-red-500 mt-1">{formErrors.deadline}</p>}
+                    </div>
+
+                    <Button
+                      onClick={handleRequestDocument}
+                      disabled={apiLoading.handleRequestDocument}
+                      className="w-full"
+                    >
+                      {apiLoading.handleRequestDocument ? (
+                        <>
+                          <LoadingSpinner />
+                          Requesting...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Request Document
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
+
               </CardContent>
             </Card>
           </TabsContent>
@@ -990,85 +1402,89 @@ export default function LoanApplicationDetails() {
             <Card>
               <CardHeader>
                 <CardTitle>Timeline</CardTitle>
-                <CardDescription>History of all actions and status changes</CardDescription>
+                <CardDescription>Progress and history of application status and notes</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  {Array.isArray(loanInfo.timeline) && loanInfo.timeline.length > 0 ? (
-                    loanInfo.timeline.map((event, index) => (
-                      <div key={index} className="flex items-start gap-4">
-                        <div className="flex flex-col items-center">
-                          <div className="w-3 h-3 rounded-full bg-blue-500" />
-                          {index < loanInfo.timeline.length - 1 && (
-                            <div className="w-0.5 h-12 bg-gray-200" />
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Actions</CardTitle>
+                    <CardDescription>Manage application status and add notes</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Update Status */}
+                    <div>
+                      <h3 className="font-medium mb-2">Update Status</h3>
+                      <div className="flex gap-2">
+                        <Select value={statusUpdate} onValueChange={setStatusUpdate}>
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="pending_review">Pending Review</SelectItem>
+                            <SelectItem value="pre_approved">Pre Approved</SelectItem>                    
+                            <SelectItem value="needs_attention">Needs Attention</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="rejected">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          onClick={handleStatusUpdate}
+                          disabled={!statusUpdate || apiLoading.handleStatusUpdate}
+                        >
+                          {apiLoading.handleStatusUpdate ? (
+                            <>
+                              <LoadingSpinner />
+                              Updating...
+                            </>
+                          ) : (
+                            "Update Status"
                           )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <StatusBadge status={event.status} />
-                            <span className="text-sm text-gray-500">
-                              {formatDate(event.date)}
-                            </span>
-                          </div>
-                          <p className="text-sm mt-1">{event.description}</p>
-                          <p className="text-xs text-gray-500 mt-1">By: {event.changedBy}</p>
-                        </div>
+                        </Button>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500">No timeline events available</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    </div>
 
-          <TabsContent value="actions">
-            <Card>
-              <CardHeader>
-                <CardTitle>Actions</CardTitle>
-                <CardDescription>Manage application status and add notes</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Update Status */}
-                <div>
-                  <h3 className="font-medium mb-2">Update Status</h3>
-                  <div className="flex gap-2">
-                    <Select value={statusUpdate} onValueChange={setStatusUpdate}>
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="submitted">Submitted</SelectItem>
-                        <SelectItem value="pending_review">Pending Review</SelectItem>
-                        <SelectItem value="document_verification">Document Verification</SelectItem>
-                        <SelectItem value="lender_submission">Lender Submission</SelectItem>
-                        <SelectItem value="lender_assessment">Lender Assessment</SelectItem>
-                        <SelectItem value="approved">Approved</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                        <SelectItem value="needs_attention">Needs Attention</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={handleStatusUpdate} disabled={!statusUpdate}>
-                      Update Status
-                    </Button>
-                  </div>
-                </div>
 
-                {/* Add Note */}
-                <div>
-                  <h3 className="font-medium mb-2">Add Note</h3>
-                  <div className="space-y-2">
-                    <Textarea
-                      placeholder="Add a note..."
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                    />
-                    <Button onClick={handleAddNote} disabled={!newNote.trim()}>
-                      Add Note
-                    </Button>
-                  </div>
+
+                  </CardContent>
+                </Card>
+                <div className="space-y-6 mt-4">
+                  {/* Predefined Timeline */}
+                  {getTimelineStatuses().map((status, index) => (
+                    <div
+                      key={status}
+                      className="flex items-start gap-4 py-2 hover:bg-gray-100 rounded transition-colors"
+                    >
+                      <div className="flex flex-col items-center">
+                        {isStatusDone(status) ? (
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                        ) : (
+                          <Circle className="w-5 h-5 text-gray-400" />
+                        )}
+                        {index < getTimelineStatuses().length - 1 && (
+                          <div className="w-0.5 h-12 bg-gray-200" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={status} />
+                          <span className="text-sm text-gray-500">
+                            {isStatusDone(status)
+                              ? formatDate(
+                                loanInfo.timeline.find((e: TimelineEvent) => e.status === status)?.date ||
+                                new Date()
+                              )
+                              : "Pending"}
+                          </span>
+                        </div>
+                        <p className="text-sm mt-1">
+                          {isStatusDone(status) ? `Completed: ${status}` : `Awaiting: ${status}`}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+
+
                 </div>
               </CardContent>
             </Card>

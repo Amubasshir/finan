@@ -75,7 +75,7 @@ export default function PreApprovalConfirmationContent() {
     try {
       // Update loan status to indicate pre-approval confirmation
       const response = await api.put(`/loan-info/${id}`, { 
-        status: 'pre-approved',
+        status: 'pre_approved',
         preApprovalDate: new Date().toISOString(),
         preApprovalDetails: {
           lenderCount: approvalStats.lenderCount,
