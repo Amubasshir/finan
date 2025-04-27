@@ -1155,7 +1155,7 @@ export default function LoanApplicationDetails() {
                                             {documentStatusLoading[`sign_${file._id}`] && (
                                               <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                                             )}
-                                            <span className="ml-2 text-xs text-gray-500">Signature</span>
+                                            <span className="ml-2 text-xs text-gray-500">Signature Required</span>
                                           </div>
                                           <Button
                                             variant="ghost"
@@ -1315,7 +1315,7 @@ export default function LoanApplicationDetails() {
                                             {additionalDocStatusLoading[`sign_${file._id}`] && (
                                               <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                                             )}
-                                            <span className="ml-2 text-xs text-gray-500">Signature</span>
+                                            <span className="ml-2 text-xs text-gray-500">Signature Required</span>
                                           </div>
 
                                           <Button
